@@ -5,11 +5,11 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["https://9a22060a67ce.ngrok-free.app"],
 
   experimental: {
-    optimizePackageImports: ['@rainbow-me/rainbowkit', 'wagmi', 'viem'],
+    optimizePackageImports: ["@rainbow-me/rainbowkit", "wagmi", "viem"],
   },
 
   webpack: (config, { isServer }) => {
-    config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    config.externals.push("pino-pretty", "lokijs", "encoding");
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
@@ -22,16 +22,18 @@ const nextConfig: NextConfig = {
     if (!isServer) {
       config.optimization = {
         ...config.optimization,
-        moduleIds: 'deterministic',
-        runtimeChunk: 'single',
+        moduleIds: "deterministic",
+        runtimeChunk: "single",
         splitChunks: {
-          chunks: 'all',
+          chunks: "all",
           cacheGroups: {
             vendor: {
               test: /[\\/]node_modules[\\/]/,
               name(module: any) {
-                const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)?.[1];
-                return `vendor-${packageName?.replace('@', '')}`;
+                const packageName = module.context.match(
+                  /[\\/]node_modules[\\/](.*?)([\\/]|$)/,
+                )?.[1];
+                return `vendor-${packageName?.replace("@", "")}`;
               },
             },
           },
