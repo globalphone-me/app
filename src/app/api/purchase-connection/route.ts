@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       phoneId: user.phoneId, // We return the hidden ID only AFTER payment
       token: token,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }

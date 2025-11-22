@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWalletClient, useAccount } from "wagmi";
 import { wrapFetchWithPayment } from "x402-fetch";
-import { Device } from "@twilio/voice-sdk";
+import { Device, Call } from "@twilio/voice-sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CallListItem } from "@/components/call-list-item";
@@ -23,7 +23,7 @@ export function CallListCard() {
 
   // Twilio State
   const [device, setDevice] = useState<Device | null>(null);
-  const [activeCall, setActiveCall] = useState<any>(null);
+  const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [deviceStatus, setDeviceStatus] = useState("Initializing...");
   const [status, setStatus] = useState<string>("");
 
@@ -53,7 +53,7 @@ export function CallListCard() {
     initTwilio();
 
     return () => {
-      if (device) device.destroy();
+      // Cleanup will be handled when device changes
     };
   }, []);
 
@@ -72,7 +72,7 @@ export function CallListCard() {
       setStatus("💰 Processing Payment...");
 
       // 2. x402 Payment Flow
-      // @ts-ignore
+      // @ts-expect-error - x402-fetch types might expect a strict Viem client, but Wagmi's is compatible
       const secureFetch = wrapFetchWithPayment(fetch, walletClient);
 
       const response = await secureFetch("/api/purchase-connection", {
@@ -115,8 +115,8 @@ export function CallListCard() {
       });
 
       setActiveCall(newCall);
-    } catch (error: any) {
-      setStatus(`🚨 Error: ${error.message}`);
+    } catch (error) {
+      setStatus(`🚨 Error: ${error instanceof Error ? error.message : String(error)}`);
       console.error(error);
     }
   };

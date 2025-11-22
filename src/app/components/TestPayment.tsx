@@ -22,7 +22,7 @@ export default function TestPayment() {
       addLog("🔵 Wallet Detected. Preparing request...");
 
       // 1. Wrap the native fetch with x402 logic using the Wagmi WalletClient
-      // @ts-ignore - x402-fetch types might expect a strict Viem client, but Wagmi's is compatible
+      // @ts-expect-error - x402-fetch types might expect a strict Viem client, but Wagmi's is compatible
       const secureFetch = wrapFetchWithPayment(fetch, walletClient);
 
       addLog("🟡 Requesting Connection (Expect 402 -> Wallet Sign -> 200)...");
@@ -56,8 +56,8 @@ export default function TestPayment() {
         const errorData = await response.json().catch(() => ({}));
         console.error(errorData);
       }
-    } catch (error: any) {
-      addLog(`🚨 Error: ${error.message}`);
+    } catch (error) {
+      addLog(`🚨 Error: ${error instanceof Error ? error.message : String(error)}`);
       console.error(error);
     }
   };
@@ -68,7 +68,7 @@ export default function TestPayment() {
 
       <div className="mb-4 text-sm text-yellow-800 bg-yellow-100 p-2 rounded">
         <strong>Check Terminal:</strong> Look at your VS Code terminal to find
-        the <code>phoneId</code> of the "Support Agent" user created by the DB.
+        the <code>phoneId</code> of the &quot;Support Agent&quot; user created by the DB.
       </div>
 
       <button
