@@ -5,13 +5,6 @@ import { useAccount, useEnsName } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Pencil, Plus, X, Loader2 } from "lucide-react";
 import { mainnet } from "wagmi/chains";
