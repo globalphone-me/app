@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import { WalletConnectButton } from '@/components/wallet-connect-button';
 import { YourPriceCard } from '@/components/your-price-card';
 // import { CallCard } from '@/components/call-card'; // Hidden debug component
@@ -13,7 +14,16 @@ export default function Home() {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">GlobalPhone</h1>
+            <div className="flex items-center gap-3">
+              <Image
+                src="/globalphone_logo.png"
+                alt="GlobalPhone Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
+              <h1 className="text-2xl font-bold">GlobalPhone</h1>
+            </div>
             <WalletConnectButton />
           </div>
         </div>
