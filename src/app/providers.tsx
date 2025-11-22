@@ -1,21 +1,17 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { WagmiProvider, createConfig, http } from 'wagmi';
-import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
-import { injected, coinbaseWallet, metaMask } from 'wagmi/connectors';
-import { CHAIN, MAINNET } from '@/lib/config';
+import * as React from "react";
+import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
+import { WagmiProvider, http } from "wagmi";
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { CHAIN, MAINNET } from "@/lib/config";
 
-import '@rainbow-me/rainbowkit/styles.css';
+import "@rainbow-me/rainbowkit/styles.css";
 
-const config = createConfig({
+const config = getDefaultConfig({
+  appName: "GlobalPhone",
+  projectId: "c191fcbb26ddb5417db1a43fe4e2c8f4",
   chains: [CHAIN, MAINNET],
-  connectors: [
-    injected({ target: 'metaMask' }),
-    metaMask(),
-    coinbaseWallet({ appName: 'x402 Phone' }),
-  ],
   transports: {
     [CHAIN.id]: http(),
     [MAINNET.id]: http(),

@@ -5,30 +5,29 @@ import { signCallToken } from "@/lib/auth";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { targetPhoneId } = body;
+    const { targetAddress } = body;
 
-    if (!targetPhoneId) {
+    if (!targetAddress) {
       return NextResponse.json(
-        { error: "Target Phone ID required" },
+        { error: "Target Address required" },
         { status: 400 },
       );
     }
 
-    // 1. Verify the person exists in our "DB"
-    const user = db.getByPhoneId(targetPhoneId);
+    // 1. Verify user exists by Address
+    const user = db.getByAddress(targetAddress);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 2. Generate the "Proof of Payment" Token (JWT)
-    // This token allows the user to make ONE call to this specific phoneId
-    const token = signCallToken(targetPhoneId);
+    // 2. Generate token (We still sign the phoneId, because that's what Twilio needs to connect)
+    const token = signCallToken(user.phoneId);
 
-    // 3. Return the credentials
+    // 3. Return credentials
     return NextResponse.json({
       status: "success",
-      phoneId: targetPhoneId,
+      phoneId: user.phoneId, // We return the hidden ID only AFTER payment
       token: token,
     });
   } catch (error) {

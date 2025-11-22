@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { WalletConnectButton } from '@/components/wallet-connect-button';
-import { YourPriceCard } from '@/components/your-price-card';
-import { CallListCard } from '@/components/call-list-card';
+import { WalletConnectButton } from "@/components/wallet-connect-button";
+import { YourPriceCard } from "@/components/your-price-card";
+import { CallListCard } from "@/components/call-list-card";
+import TestPayment from "./components/TestPayment";
 
 export default function Home() {
   return (
@@ -11,7 +12,7 @@ export default function Home() {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">x402 Phone</h1>
+            <h1 className="text-2xl font-bold">GlobalPhone</h1>
             <WalletConnectButton />
           </div>
         </div>
@@ -31,6 +32,8 @@ export default function Home() {
             <CallListCard />
           </div>
         </div>
+
+        <TestPayment />
       </main>
     </div>
   );

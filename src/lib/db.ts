@@ -1,54 +1,60 @@
-// A simple interface for our User
+import crypto from "crypto";
+
 export interface Callee {
   id: string;
   name: string;
-  realPhoneNumber: string; // The sensitive data (+33...)
-  phoneId: string; // The public hash
+  realPhoneNumber: string;
+  phoneId: string;
+  address: string; // New field
 }
 
 class InMemoryDB {
+  // Changed Map key to store by "address" instead of "phoneId" for easier lookup
   private users: Map<string, Callee> = new Map();
 
   constructor() {
-    // Seed with a test user (Your setup from the previous step)
-    this.addUser("Support Agent", process.env.NEXT_PUBLIC_TO_NUMBER || "");
+    // SEED: We use the exact address from your MOCK_USERS
+    this.addUser(
+      "user.eth",
+      process.env.NEXT_PUBLIC_TO_NUMBER || "",
+      "0x1234567890abcdef1234567890abcdef12345678",
+    );
   }
 
-  // Helper to create a consistent hash (PhoneId) from a real number
   private generatePhoneId(realNumber: string): string {
-    return require("crypto")
+    return crypto
       .createHash("sha256")
       .update(realNumber)
       .digest("hex")
       .substring(0, 12);
   }
 
-  addUser(name: string, realPhoneNumber: string) {
+  addUser(name: string, realPhoneNumber: string, address: string) {
     const phoneId = this.generatePhoneId(realPhoneNumber);
     const user: Callee = {
       id: Math.random().toString(36).substring(7),
       name,
       realPhoneNumber,
       phoneId,
+      address: address.toLowerCase(), // Store lowercase for safety
     };
 
-    // We map by phoneId for easy lookup during the call
-    this.users.set(phoneId, user);
+    this.users.set(user.address, user);
     return user;
   }
 
-  getByPhoneId(phoneId: string): Callee | undefined {
-    return this.users.get(phoneId);
+  // New method for the Purchase Route
+  getByAddress(address: string): Callee | undefined {
+    return this.users.get(address.toLowerCase());
   }
 
-  // For the frontend to list people
-  getAll() {
-    return Array.from(this.users.values()).map((u) => ({
-      name: u.name,
-      phoneId: u.phoneId, // We DO NOT return the real number here
-    }));
+  // Helper for the Voice API (which might still need ID lookup later)
+  getByPhoneId(phoneId: string): Callee | undefined {
+    for (const user of this.users.values()) {
+      if (user.phoneId === phoneId) return user;
+    }
+    return undefined;
   }
 }
 
-// Export as a singleton
 export const db = new InMemoryDB();
