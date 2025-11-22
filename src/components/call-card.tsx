@@ -6,8 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { MiniKit, PayCommandInput, Tokens, tokenToDecimals, VerifyCommandInput, VerificationLevel, ISuccessResult } from '@worldcoin/minikit-js';
 import { Device, Call } from "@twilio/voice-sdk";
+import { useWalletClient, useAccount } from 'wagmi';
+import { wrapFetchWithPayment } from 'x402-fetch';
 
 export function CallCard() {
+  // Wagmi hooks for x402 payment
+  const { isConnected: wagmiConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+
   const [recipientAddress, setRecipientAddress] = useState('');
   const [amount, setAmount] = useState('0.1'); // Default 0.1 USDC for testing
   const [isProcessing, setIsProcessing] = useState(false);
@@ -49,13 +55,93 @@ export function CallCard() {
     };
   }, []);
 
+  // Detect environment - prioritize MiniKit if available
+  const isMiniKitEnv = MiniKit.isInstalled();
+  // Only use wallet if MiniKit is NOT available
+  const isWalletEnv = !isMiniKitEnv && wagmiConnected && !!walletClient;
+
+  const handleX402Payment = async () => {
+    if (!recipientAddress) {
+      setError('Please enter a recipient address');
+      return;
+    }
+
+    if (!isWalletEnv) {
+      setError('Wallet not connected. Please connect your wallet.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setError('');
+    setCurrentStep('paying');
+
+    try {
+      // Wrap fetch with x402 payment handling
+      // @ts-expect-error - x402-fetch types might expect a strict Viem client, but Wagmi's is compatible
+      const secureFetch = wrapFetchWithPayment(fetch, walletClient);
+
+      // Request connection - this will trigger 402 payment flow
+      const response = await secureFetch('/api/purchase-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetAddress: recipientAddress }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Payment failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.token || !data.phoneId) {
+        throw new Error('Invalid response from payment server');
+      }
+
+      // STEP 2: Connect Twilio call with payment credentials
+      setCurrentStep('calling');
+
+      if (!device || deviceStatus !== 'Ready') {
+        throw new Error('Phone service not ready. Please refresh and try again.');
+      }
+
+      const { phoneId, token } = data;
+
+      const newCall = await device.connect({
+        params: {
+          phoneId: phoneId,
+          token: token,
+        },
+      });
+
+      // Handle Call Events
+      newCall.on('accept', () => {
+        setCurrentStep('idle');
+        setError('');
+      });
+
+      newCall.on('disconnect', () => {
+        setActiveCall(null);
+        setCurrentStep('idle');
+      });
+
+      setActiveCall(newCall);
+      setIsProcessing(false);
+    } catch (err) {
+      console.error('x402 Payment error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setCurrentStep('idle');
+      setIsProcessing(false);
+    }
+  };
+
   const handleVerifyAndPay = async () => {
     if (!recipientAddress || !amount) {
       setError('Please enter a recipient address and amount');
       return;
     }
 
-    if (!MiniKit.isInstalled()) {
+    if (!isMiniKitEnv) {
       setError('MiniKit is not installed. Please open in World App.');
       return;
     }
@@ -195,6 +281,17 @@ export function CallCard() {
     }
   };
 
+  const handleCall = async () => {
+    // Route to appropriate payment flow based on environment
+    if (isMiniKitEnv) {
+      await handleVerifyAndPay();
+    } else if (isWalletEnv) {
+      await handleX402Payment();
+    } else {
+      setError('Please connect your wallet or open in World App');
+    }
+  };
+
   const handleHangup = () => {
     if (activeCall) {
       activeCall.disconnect();
@@ -203,13 +300,17 @@ export function CallCard() {
     }
   };
 
+  // Determine payment method for UI display
+  const paymentMethod = isMiniKitEnv ? 'World App' : isWalletEnv ? 'x402' : 'Not Connected';
+  const isConnected = isMiniKitEnv || isWalletEnv;
+
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-center">Call Someone (World Payment)</CardTitle>
+        <CardTitle className="text-center">Make a Call</CardTitle>
         <div className="flex justify-between items-center text-xs mt-2">
           <span className="text-muted-foreground">
-            {activeCall ? '📞 On call...' : 'Ready to call'}
+            {activeCall ? '📞 On call...' : `Payment: ${paymentMethod}`}
           </span>
           <span
             className={`px-2 py-1 rounded ${deviceStatus === "Ready" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
@@ -244,22 +345,24 @@ export function CallCard() {
                 className="w-full font-mono text-sm"
               />
             </div>
-            <div className="space-y-2">
-              <label htmlFor="amount" className="text-sm font-medium">
-                Amount (USDC)
-              </label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.1"
-                min="0.1"
-                placeholder="5"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full"
-              />
-              <p className="text-xs text-muted-foreground">Minimum: $0.10 USDC</p>
-            </div>
+            {isMiniKitEnv && (
+              <div className="space-y-2">
+                <label htmlFor="amount" className="text-sm font-medium">
+                  Amount (USDC)
+                </label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  placeholder="5"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground">Minimum: $0.10 USDC</p>
+              </div>
+            )}
             {error && (
               <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md">
                 {error}
@@ -268,21 +371,25 @@ export function CallCard() {
             {currentStep !== 'idle' && (
               <div className="p-3 text-sm bg-primary/10 text-primary rounded-md">
                 {currentStep === 'verifying' && '🔍 Step 1: Verifying humanity...'}
-                {currentStep === 'paying' && '💰 Step 2: Processing payment...'}
-                {currentStep === 'calling' && '📞 Step 3: Connecting call...'}
+                {currentStep === 'paying' && `💰 ${isMiniKitEnv ? 'Step 2: Processing payment...' : 'Processing payment...'}`}
+                {currentStep === 'calling' && `📞 ${isMiniKitEnv ? 'Step 3: Connecting call...' : 'Connecting call...'}`}
               </div>
             )}
             <Button
-              onClick={handleVerifyAndPay}
+              onClick={handleCall}
               className="w-full"
-              disabled={isProcessing || !recipientAddress || !amount || deviceStatus !== "Ready"}
+              disabled={isProcessing || !recipientAddress || (isMiniKitEnv && !amount) || deviceStatus !== "Ready" || !isConnected}
             >
               {isProcessing
                 ? (currentStep === 'verifying' ? 'Verifying...' : currentStep === 'paying' ? 'Processing Payment...' : 'Connecting...')
-                : 'Verify & Pay to Call'}
+                : isMiniKitEnv ? 'Verify & Pay to Call' : 'Pay to Call'}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
-              Three-step: World ID proof + USDC payment + Twilio call
+              {isMiniKitEnv
+                ? 'World ID proof + USDC payment + Call'
+                : isWalletEnv
+                  ? 'x402 payment + Call'
+                  : 'Connect wallet or open in World App to call'}
             </p>
           </>
         )}

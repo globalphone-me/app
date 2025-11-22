@@ -28,6 +28,7 @@ export function YourPriceCard() {
   });
   const [hasSetup, setHasSetup] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [displayedName, setDisplayedName] = useState('');
   const [price, setPrice] = useState('0.1');
   const [onlyHumans, setOnlyHumans] = useState(false);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
@@ -165,7 +166,7 @@ export function YourPriceCard() {
     }
   };
 
-  const displayName = ensName || (address ? formatAddress(address) : '');
+  const displayName = displayedName || ensName || (address ? formatAddress(address) : '');
   const maskedPhone = phoneNumber ? maskPhoneNumber(phoneNumber) : '';
 
   // Not connected state
@@ -203,6 +204,19 @@ export function YourPriceCard() {
                 placeholder="Enter your phone number"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="displayedName" className="text-sm font-medium">
+                Displayed Name
+              </label>
+              <Input
+                id="displayedName"
+                type="text"
+                placeholder="Enter your displayed name"
+                value={displayedName}
+                onChange={(e) => setDisplayedName(e.target.value)}
                 className="w-full"
               />
             </div>
@@ -335,6 +349,18 @@ export function YourPriceCard() {
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="displayedName-edit" className="text-sm font-medium">
+                Displayed Name
+              </label>
+              <Input
+                id="displayedName-edit"
+                type="text"
+                value={displayedName}
+                onChange={(e) => setDisplayedName(e.target.value)}
                 className="w-full"
               />
             </div>

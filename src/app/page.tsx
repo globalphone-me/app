@@ -2,9 +2,9 @@
 
 import { WalletConnectButton } from '@/components/wallet-connect-button';
 import { YourPriceCard } from '@/components/your-price-card';
-import { CallCard } from '@/components/call-card';
+// import { CallCard } from '@/components/call-card'; // Hidden debug component
 import { CallListCard } from '@/components/call-list-card';
-import TestPayment from "./components/TestPayment";
+// import TestPayment from "./components/TestPayment"; // Hidden debug component
 
 export default function Home() {
   return (
@@ -26,7 +26,7 @@ export default function Home() {
           {/* Left column - Your Price (larger on desktop) */}
           <div className="space-y-6">
             <YourPriceCard />
-            <CallCard />
+            {/* <CallCard /> */} {/* Hidden debug component - "Call Someone" World Payment */}
           </div>
 
           {/* Right column - Call List (smaller on desktop) */}
@@ -35,7 +35,7 @@ export default function Home() {
           </div>
         </div>
 
-        <TestPayment />
+        {/* <TestPayment /> */} {/* Hidden debug component - x402 Payment Test */}
       </main>
     </div>
   );
