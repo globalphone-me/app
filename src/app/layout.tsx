@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "x402 Phone - Web3 Calling",
+  title: "GlobalPhone",
   description: "Set your price and make calls on the blockchain",
+  icons: {
+    icon: "/globalphone_logo.png",
+  },
 };
 
 export default function RootLayout({
