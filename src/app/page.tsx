@@ -1,15 +1,37 @@
-"use client";
+'use client';
 
-import { MiniKit } from "@worldcoin/minikit-js";
+import { WalletConnectButton } from '@/components/wallet-connect-button';
+import { YourPriceCard } from '@/components/your-price-card';
+import { CallListCard } from '@/components/call-list-card';
 
 export default function Home() {
-  console.log("hello");
-  console.log(MiniKit.isInstalled());
   return (
-    <div>
-      <div className="flex flex-col min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-        <h1>x402 Phone</h1>
-      </div>
+    <div className="min-h-screen bg-zinc-50 dark:bg-black">
+      {/* Header with wallet button */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">x402 Phone</h1>
+            <WalletConnectButton />
+          </div>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="container mx-auto px-4 py-8">
+        {/* Responsive two-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+          {/* Left column - Your Price (larger on desktop) */}
+          <div>
+            <YourPriceCard />
+          </div>
+
+          {/* Right column - Call List (smaller on desktop) */}
+          <div>
+            <CallListCard />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
