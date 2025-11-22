@@ -9,14 +9,11 @@ import { Separator } from "@/components/ui/separator";
 import { CallListItem } from "@/components/call-list-item";
 import { MiniKit, PayCommandInput, Tokens, tokenToDecimals, VerifyCommandInput, VerificationLevel, ISuccessResult } from '@worldcoin/minikit-js';
 
-// Matches the address in lib/db.ts
-const MOCK_USERS = [
-  {
-    address: "0x1234567890abcdef1234567890abcdef12345678",
-    displayName: "user.eth",
-    price: 100,
-  },
-];
+interface CallTarget {
+  address: string;
+  displayName: string;
+  price: number;
+}
 
 export function CallListCard() {
   const { isConnected: wagmiConnected } = useAccount();
@@ -28,6 +25,7 @@ export function CallListCard() {
   const isConnected = isMiniKitEnv || isWalletEnv;
 
   // Twilio State
+  const [users, setUsers] = useState<CallTarget[]>([]);
   const [device, setDevice] = useState<Device | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [deviceStatus, setDeviceStatus] = useState("Initializing...");
@@ -38,6 +36,15 @@ export function CallListCard() {
   useEffect(() => {
     async function initTwilio() {
       try {
+        console.log("brooo?");
+        // A. Fetch Users
+        const usersResp = await fetch("/api/users");
+        console.log({ usersResp });
+        if (usersResp.ok) {
+          const usersData = await usersResp.json();
+          setUsers(usersData);
+        }
+
         const resp = await fetch("/api/token");
         const data = await resp.json();
 
@@ -217,7 +224,9 @@ export function CallListCard() {
 
       setActiveCall(newCall);
     } catch (error) {
-      setStatus(`🚨 Error: ${error instanceof Error ? error.message : String(error)}`);
+      setStatus(
+        `🚨 Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
       console.error(error);
     }
   };
@@ -260,7 +269,7 @@ export function CallListCard() {
           </div>
         ) : (
           <div className="space-y-1">
-            {MOCK_USERS.map((user, index) => (
+            {users.map((user, index) => (
               <div key={user.address}>
                 <CallListItem
                   address={user.address}
@@ -268,7 +277,7 @@ export function CallListCard() {
                   price={user.price}
                   onCall={() => handleCall(user.address)}
                 />
-                {index < MOCK_USERS.length - 1 && <Separator />}
+                {index < users.length - 1 && <Separator />}
               </div>
             ))}
           </div>

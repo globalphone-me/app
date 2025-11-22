@@ -14,23 +14,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Verify user exists by Address
-    const user = db.getByAddress(targetAddress);
+    const user = await db.getByAddress(targetAddress);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 2. Generate token (We still sign the phoneId, because that's what Twilio needs to connect)
+    // Generate token using the retrieved phoneId
     const token = signCallToken(user.phoneId);
 
-    // 3. Return credentials
     return NextResponse.json({
       status: "success",
-      phoneId: user.phoneId, // We return the hidden ID only AFTER payment
+      phoneId: user.phoneId,
       token: token,
     });
-  } catch {
+  } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
