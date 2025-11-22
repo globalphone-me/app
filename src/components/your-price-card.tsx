@@ -1,17 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useAccount, useEnsName } from 'wagmi';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Pencil, Plus, X } from 'lucide-react';
-import { mainnet } from 'wagmi/chains';
-import { MiniKit, VerifyCommandInput, VerificationLevel, ISuccessResult } from '@worldcoin/minikit-js';
+import { useState, useEffect } from "react";
+import { useAccount, useEnsName } from "wagmi";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Pencil, Plus, X, Loader2 } from "lucide-react";
+import { mainnet } from "wagmi/chains";
+import { MiniKit } from "@worldcoin/minikit-js";
 
-type RuleType = 'poap' | 'token' | 'ens' | 'humans';
+type RuleType = "poap" | "token" | "ens" | "humans";
 
 interface PricingRule {
   id: string;
@@ -26,48 +32,84 @@ export function YourPriceCard() {
     address: wagmiAddress,
     chainId: mainnet.id,
   });
+
+  // State
+  const [isLoading, setIsLoading] = useState(false); // Loading profile
+  const [isSaving, setIsSaving] = useState(false); // Saving profile
   const [hasSetup, setHasSetup] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [price, setPrice] = useState('0.1');
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [price, setPrice] = useState("0.1");
   const [onlyHumans, setOnlyHumans] = useState(false);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [miniKitInstalled, setMiniKitInstalled] = useState<boolean | null>(null);
-  const [miniKitAddress, setMiniKitAddress] = useState<string | null>(null);
-  // const [isVerified, setIsVerified] = useState(false);
-  // const [isVerifying, setIsVerifying] = useState(false);
 
+  // MiniKit State
+  const [miniKitInstalled, setMiniKitInstalled] = useState<boolean | null>(
+    null,
+  );
+  const [miniKitAddress, setMiniKitAddress] = useState<string | null>(null);
+
+  // 1. MiniKit Initialization
   useEffect(() => {
     const isInstalled = MiniKit.isInstalled();
     setMiniKitInstalled(isInstalled);
 
     if (isInstalled) {
-      const address = (window as unknown as { MiniKit?: { walletAddress?: string } }).MiniKit?.walletAddress || null;
+      const address =
+        (window as unknown as { MiniKit?: { walletAddress?: string } }).MiniKit
+          ?.walletAddress || null;
       setMiniKitAddress(address);
-      console.log('[DEBUG] Initial MiniKit.walletAddress:', address);
     }
 
-    console.log('[DEBUG] MiniKit.isInstalled():', isInstalled);
-    console.log('[DEBUG] window.MiniKit:', (window as unknown as { MiniKit?: unknown }).MiniKit);
-
-    // Listen for MiniKit address changes
     const handleAddressChange = (event: Event) => {
       const customEvent = event as CustomEvent<{ address: string }>;
-      console.log('[DEBUG] MiniKit address changed:', customEvent.detail.address);
       setMiniKitAddress(customEvent.detail.address);
     };
 
-    window.addEventListener('minikit-address-changed', handleAddressChange);
-
+    window.addEventListener("minikit-address-changed", handleAddressChange);
     return () => {
-      window.removeEventListener('minikit-address-changed', handleAddressChange);
+      window.removeEventListener(
+        "minikit-address-changed",
+        handleAddressChange,
+      );
     };
   }, []);
 
-  // Unified connection status - check both wagmi and MiniKit
   const isConnected = wagmiConnected || (miniKitInstalled && !!miniKitAddress);
   const address = miniKitAddress || wagmiAddress;
 
+  // 2. BACKEND INTEGRATION: Check if user exists
+  useEffect(() => {
+    async function checkUser() {
+      if (!address) return;
+
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/user?address=${address}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.found) {
+            setPhoneNumber(data.user.phoneNumber);
+            setPrice(data.user.price);
+            // Restore optional fields if they exist
+            setOnlyHumans(data.user.onlyHumans || false);
+            setPricingRules(data.user.rules || []);
+            setHasSetup(true);
+          }
+        }
+      } catch (e) {
+        console.error("Error checking user", e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    if (isConnected && address) {
+      checkUser();
+    }
+  }, [isConnected, address]);
+
+  // 3. Helpers
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
@@ -77,98 +119,88 @@ export function YourPriceCard() {
     const firstFour = phone.slice(0, 4);
     const lastTwo = phone.slice(-2);
     const middleLength = phone.length - 6;
-    return firstFour + '*'.repeat(middleLength) + lastTwo;
+    return firstFour + "*".repeat(middleLength) + lastTwo;
   };
 
+  // 4. Form Logic
   const addPricingRule = () => {
     const newRule: PricingRule = {
       id: Math.random().toString(36).substring(7),
-      type: 'poap',
-      value: '',
-      price: '',
+      type: "poap",
+      value: "",
+      price: "",
     };
     setPricingRules([...pricingRules, newRule]);
   };
 
   const removePricingRule = (id: string) => {
-    setPricingRules(pricingRules.filter(rule => rule.id !== id));
+    setPricingRules(pricingRules.filter((rule) => rule.id !== id));
   };
 
-  const updatePricingRule = (id: string, field: keyof PricingRule, value: string) => {
-    setPricingRules(pricingRules.map(rule =>
-      rule.id === id ? { ...rule, [field]: value } : rule
-    ));
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleVerifyHuman = async () => {
-    if (!MiniKit.isInstalled()) {
-      console.error('MiniKit is not installed');
-      return;
-    }
-
-    // setIsVerifying(true);
-
-    try {
-      const verifyPayload: VerifyCommandInput = {
-        action: 'verify-human', // This is your action ID from the Developer Portal
-        verification_level: VerificationLevel.Device,
-      };
-
-      const { finalPayload } = await MiniKit.commandsAsync.verify(verifyPayload);
-
-      if (finalPayload.status === 'error') {
-        console.error('Verification error:', finalPayload);
-        // setIsVerifying(false);
-        return;
-      }
-
-      // Verify the proof in the backend
-      const verifyResponse = await fetch('/api/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          payload: finalPayload as ISuccessResult,
-          action: 'verify-human',
-        }),
-      });
-
-      const verifyResponseJson = await verifyResponse.json();
-
-      if (verifyResponse.ok && verifyResponseJson.success) {
-        // setIsVerified(true);
-        console.log('Human verification successful!');
-      } else {
-        console.error('Verification failed:', verifyResponseJson);
-      }
-    } catch (error) {
-      console.error('Verification error:', error);
-    } finally {
-      // setIsVerifying(false);
-    }
-  };
-
-  const handleConfirmSetup = () => {
-    if (phoneNumber && price) {
-      setHasSetup(true);
-    }
+  const updatePricingRule = (
+    id: string,
+    field: keyof PricingRule,
+    value: string,
+  ) => {
+    setPricingRules(
+      pricingRules.map((rule) =>
+        rule.id === id ? { ...rule, [field]: value } : rule,
+      ),
+    );
   };
 
   const getRuleTypeLabel = (type: RuleType) => {
     switch (type) {
-      case 'poap': return 'POAP Owners';
-      case 'token': return 'Token Owners';
-      case 'ens': return 'ENS Names';
-      case 'humans': return 'Humans';
+      case "poap":
+        return "POAP Owners";
+      case "token":
+        return "Token Owners";
+      case "ens":
+        return "ENS Names";
+      case "humans":
+        return "Humans";
     }
   };
 
-  const displayName = ensName || (address ? formatAddress(address) : '');
-  const maskedPhone = phoneNumber ? maskPhoneNumber(phoneNumber) : '';
+  // 5. BACKEND INTEGRATION: Save Profile
+  const handleConfirmSetup = async () => {
+    if (!phoneNumber || !price || !address) return;
 
-  // Not connected state
+    setIsSaving(true);
+
+    try {
+      const response = await fetch("/api/user/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address,
+          phoneNumber,
+          price,
+          onlyHumans,
+          rules: pricingRules,
+        }),
+      });
+
+      if (response.ok) {
+        setHasSetup(true);
+        setIsEditing(false);
+      } else {
+        alert("Failed to save settings.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error saving settings.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const displayName = ensName || (address ? formatAddress(address) : "");
+  const maskedPhone = phoneNumber ? maskPhoneNumber(phoneNumber) : "";
+
+  // --- RENDERING ---
+
+  // Not connected
   if (!isConnected) {
     return (
       <Card className="w-full">
@@ -184,21 +216,32 @@ export function YourPriceCard() {
     );
   }
 
-  // Initial setup state
-  if (!hasSetup) {
+  // Loading Profile from DB
+  if (isLoading) {
+    return (
+      <Card className="w-full">
+        <CardContent className="p-8 flex justify-center">
+          <Loader2 className="animate-spin h-8 w-8 text-gray-400" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Setup or Edit Mode
+  if (!hasSetup || isEditing) {
     return (
       <Card className="w-full">
         <CardHeader>
-          <CardTitle className="text-center">Let people call you</CardTitle>
+          <CardTitle className="text-center">
+            {isEditing ? "Edit Your Settings" : "Let people call you"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
+            {/* Phone Number */}
             <div className="space-y-2">
-              <label htmlFor="phone" className="text-sm font-medium">
-                Phone Number
-              </label>
+              <label className="text-sm font-medium">Phone Number</label>
               <Input
-                id="phone"
                 type="tel"
                 placeholder="Enter your phone number"
                 value={phoneNumber}
@@ -206,13 +249,12 @@ export function YourPriceCard() {
                 className="w-full"
               />
             </div>
+
+            {/* Price and Human Check */}
             <div className="space-y-2">
-              <label htmlFor="price" className="text-sm font-medium">
-                Base Price (USDC)
-              </label>
+              <label className="text-sm font-medium">Base Price (USDC)</label>
               <div className="flex items-center gap-3">
                 <Input
-                  id="price"
                   type="number"
                   placeholder="5"
                   value={price}
@@ -221,12 +263,14 @@ export function YourPriceCard() {
                 />
                 <div className="flex items-center space-x-2 whitespace-nowrap">
                   <Checkbox
-                    id="only-humans"
+                    id={isEditing ? "only-humans-edit" : "only-humans"}
                     checked={onlyHumans}
-                    onCheckedChange={(checked) => setOnlyHumans(checked as boolean)}
+                    onCheckedChange={(checked) =>
+                      setOnlyHumans(checked as boolean)
+                    }
                   />
                   <label
-                    htmlFor="only-humans"
+                    htmlFor={isEditing ? "only-humans-edit" : "only-humans"}
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     Only verified Humans
@@ -237,13 +281,26 @@ export function YourPriceCard() {
 
             {/* Custom Pricing Rules */}
             <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium">
+                  Custom Pricing Rules
+                </label>
+              </div>
+
               {pricingRules.map((rule) => (
-                <div key={rule.id} className="flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-2 border p-3 rounded-lg lg:border-0 lg:p-0">
+                <div
+                  key={rule.id}
+                  className="flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-2 border p-3 rounded-lg lg:border-0 lg:p-0"
+                >
                   <div className="lg:w-40">
-                    <label className="block lg:hidden text-xs text-muted-foreground mb-1">Type</label>
+                    <label className="block lg:hidden text-xs text-muted-foreground mb-1">
+                      Type
+                    </label>
                     <Select
                       value={rule.type}
-                      onValueChange={(value) => updatePricingRule(rule.id, 'type', value)}
+                      onValueChange={(value) =>
+                        updatePricingRule(rule.id, "type", value)
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -258,27 +315,35 @@ export function YourPriceCard() {
                   </div>
                   <div className="lg:flex-1">
                     <label className="block lg:hidden text-xs text-muted-foreground mb-1">
-                      {rule.type === 'humans' ? 'Optional: specific world ID' : 'Value'}
+                      {rule.type === "humans"
+                        ? "Optional: specific world ID"
+                        : "Value"}
                     </label>
                     <Input
                       placeholder={
-                        rule.type === 'humans'
-                          ? 'Optional: specific world ID'
-                          : rule.type === 'ens'
-                            ? 'vitalik.eth'
-                            : '0x...'
+                        rule.type === "humans"
+                          ? "Optional: specific world ID"
+                          : rule.type === "ens"
+                            ? "vitalik.eth"
+                            : "0x..."
                       }
                       value={rule.value}
-                      onChange={(e) => updatePricingRule(rule.id, 'value', e.target.value)}
+                      onChange={(e) =>
+                        updatePricingRule(rule.id, "value", e.target.value)
+                      }
                     />
                   </div>
                   <div className="lg:w-24">
-                    <label className="block lg:hidden text-xs text-muted-foreground mb-1">Price (USDC)</label>
+                    <label className="block lg:hidden text-xs text-muted-foreground mb-1">
+                      Price (USDC)
+                    </label>
                     <Input
                       type="number"
                       placeholder="Price"
                       value={rule.price}
-                      onChange={(e) => updatePricingRule(rule.id, 'price', e.target.value)}
+                      onChange={(e) =>
+                        updatePricingRule(rule.id, "price", e.target.value)
+                      }
                     />
                   </div>
                   <div className="lg:w-10">
@@ -305,150 +370,28 @@ export function YourPriceCard() {
               </Button>
             </div>
           </div>
+
           <Button
             onClick={handleConfirmSetup}
             className="w-full"
-            disabled={!phoneNumber || !price}
+            disabled={!phoneNumber || !price || isSaving}
           >
-            Confirm
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+              </>
+            ) : isEditing ? (
+              "Save Changes"
+            ) : (
+              "Confirm"
+            )}
           </Button>
         </CardContent>
       </Card>
     );
   }
 
-  // Setup complete - editing state
-  if (isEditing) {
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-center">Edit Your Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="phone-edit" className="text-sm font-medium">
-                Phone Number
-              </label>
-              <Input
-                id="phone-edit"
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="price-edit" className="text-sm font-medium">
-                Base Price (USDC)
-              </label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="price-edit"
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="flex-1"
-                />
-                <div className="flex items-center space-x-2 whitespace-nowrap">
-                  <Checkbox
-                    id="only-humans-edit"
-                    checked={onlyHumans}
-                    onCheckedChange={(checked) => setOnlyHumans(checked as boolean)}
-                  />
-                  <label
-                    htmlFor="only-humans-edit"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    only humans
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Custom Pricing Rules - Edit Mode */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Custom Pricing Rules</label>
-              {pricingRules.map((rule) => (
-                <div key={rule.id} className="flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-2 border p-3 rounded-lg lg:border-0 lg:p-0">
-                  <div className="lg:w-40">
-                    <label className="block lg:hidden text-xs text-muted-foreground mb-1">Type</label>
-                    <Select
-                      value={rule.type}
-                      onValueChange={(value) => updatePricingRule(rule.id, 'type', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="poap">POAP Owners</SelectItem>
-                        <SelectItem value="token">Token Owners</SelectItem>
-                        <SelectItem value="ens">ENS Names</SelectItem>
-                        <SelectItem value="humans">Humans</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="lg:flex-1">
-                    <label className="block lg:hidden text-xs text-muted-foreground mb-1">
-                      {rule.type === 'humans' ? 'Optional: specific world ID' : 'Value'}
-                    </label>
-                    <Input
-                      placeholder={
-                        rule.type === 'humans'
-                          ? 'Optional: specific world ID'
-                          : rule.type === 'ens'
-                            ? 'vitalik.eth'
-                            : '0x...'
-                      }
-                      value={rule.value}
-                      onChange={(e) => updatePricingRule(rule.id, 'value', e.target.value)}
-                    />
-                  </div>
-                  <div className="lg:w-24">
-                    <label className="block lg:hidden text-xs text-muted-foreground mb-1">Price (USDC)</label>
-                    <Input
-                      type="number"
-                      placeholder="Price"
-                      value={rule.price}
-                      onChange={(e) => updatePricingRule(rule.id, 'price', e.target.value)}
-                    />
-                  </div>
-                  <div className="lg:w-10">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removePricingRule(rule.id)}
-                      className="w-full lg:w-auto"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addPricingRule}
-                className="w-full"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add custom pricing rule
-              </Button>
-            </div>
-          </div>
-          <Button
-            onClick={() => setIsEditing(false)}
-            className="w-full"
-          >
-            Save Changes
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Setup complete - display state
+  // Display State (Read Only)
   return (
     <Card className="w-full">
       <CardHeader>
@@ -466,12 +409,28 @@ export function YourPriceCard() {
               <Pencil className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Only Humans Badge */}
+          {onlyHumans && (
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+              Verified Humans Only
+            </span>
+          )}
+
+          {/* Display Rules */}
           {pricingRules.length > 0 && (
-            <div className="text-sm text-muted-foreground space-y-1 w-full max-w-md">
-              <p className="font-medium text-center mb-2">Custom Pricing:</p>
+            <div className="text-sm text-muted-foreground space-y-1 w-full max-w-md border-t pt-3">
+              <p className="font-medium text-center mb-2 text-xs uppercase tracking-wider">
+                Custom Pricing
+              </p>
               {pricingRules.map((rule) => (
-                <div key={rule.id} className="flex justify-between items-center px-2">
-                  <span>{getRuleTypeLabel(rule.type)}: {rule.value}</span>
+                <div
+                  key={rule.id}
+                  className="flex justify-between items-center px-2 py-1 bg-gray-50 rounded"
+                >
+                  <span>
+                    {getRuleTypeLabel(rule.type)}: {rule.value || "(Any)"}
+                  </span>
                   <span className="font-semibold">{rule.price} USDC</span>
                 </div>
               ))}

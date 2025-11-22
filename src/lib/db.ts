@@ -1,26 +1,20 @@
+import Redis from "ioredis";
 import crypto from "crypto";
+
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 
 export interface Callee {
   id: string;
   name: string;
   realPhoneNumber: string;
   phoneId: string;
-  address: string; // New field
+  address: string;
+  price: string;
+  onlyHumans?: boolean;
+  rules?: any[];
 }
 
-class InMemoryDB {
-  // Changed Map key to store by "address" instead of "phoneId" for easier lookup
-  private users: Map<string, Callee> = new Map();
-
-  constructor() {
-    // SEED: We use the exact address from your MOCK_USERS
-    this.addUser(
-      "user.eth",
-      process.env.NEXT_PUBLIC_TO_NUMBER || "",
-      "0x1234567890abcdef1234567890abcdef12345678",
-    );
-  }
-
+class RedisDB {
   private generatePhoneId(realNumber: string): string {
     return crypto
       .createHash("sha256")
@@ -29,32 +23,62 @@ class InMemoryDB {
       .substring(0, 12);
   }
 
-  addUser(name: string, realPhoneNumber: string, address: string) {
+  // Update signature to accept an options object or extra params
+  async addUser(
+    name: string,
+    realPhoneNumber: string,
+    address: string,
+    price: string,
+    onlyHumans: boolean, // <--- NEW
+    rules: any[], // <--- NEW
+  ) {
     const phoneId = this.generatePhoneId(realPhoneNumber);
+    const lowerAddr = address.toLowerCase();
+
     const user: Callee = {
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       name,
       realPhoneNumber,
       phoneId,
-      address: address.toLowerCase(), // Store lowercase for safety
+      address: lowerAddr,
+      price,
+      onlyHumans, // Save to object
+      rules, // Save to object
     };
 
-    this.users.set(user.address, user);
+    const data = JSON.stringify(user);
+
+    await redis.set(`user:addr:${lowerAddr}`, data);
+    await redis.set(`user:pid:${phoneId}`, data);
+    await redis.sadd("directory:users", lowerAddr);
+
     return user;
   }
 
-  // New method for the Purchase Route
-  getByAddress(address: string): Callee | undefined {
-    return this.users.get(address.toLowerCase());
+  // ... (rest of methods getByAddress, getByPhoneId, getAllUsers remain the same)
+  async getByAddress(address: string): Promise<Callee | null> {
+    const data = await redis.get(`user:addr:${address.toLowerCase()}`);
+    return data ? JSON.parse(data) : null;
   }
 
-  // Helper for the Voice API (which might still need ID lookup later)
-  getByPhoneId(phoneId: string): Callee | undefined {
-    for (const user of this.users.values()) {
-      if (user.phoneId === phoneId) return user;
-    }
-    return undefined;
+  async getByPhoneId(phoneId: string): Promise<Callee | null> {
+    const data = await redis.get(`user:pid:${phoneId}`);
+    return data ? JSON.parse(data) : null;
+  }
+
+  async getAllUsers(): Promise<Callee[]> {
+    const addresses = await redis.smembers("directory:users");
+    if (addresses.length === 0) return [];
+    const pipeline = redis.pipeline();
+    addresses.forEach((addr) => pipeline.get(`user:addr:${addr}`));
+    const results = await pipeline.exec();
+    const users: Callee[] = [];
+    results?.forEach(([err, result]) => {
+      if (!err && result && typeof result === "string")
+        users.push(JSON.parse(result));
+    });
+    return users;
   }
 }
 
-export const db = new InMemoryDB();
+export const db = new RedisDB();
