@@ -23,14 +23,13 @@ class RedisDB {
       .substring(0, 12);
   }
 
-  // Update signature to accept an options object or extra params
   async addUser(
     name: string,
     realPhoneNumber: string,
     address: string,
     price: string,
-    onlyHumans: boolean, // <--- NEW
-    rules: any[], // <--- NEW
+    onlyHumans: boolean,
+    rules: any[],
   ) {
     const phoneId = this.generatePhoneId(realPhoneNumber);
     const lowerAddr = address.toLowerCase();
@@ -42,12 +41,11 @@ class RedisDB {
       phoneId,
       address: lowerAddr,
       price,
-      onlyHumans, // Save to object
-      rules, // Save to object
+      onlyHumans,
+      rules,
     };
 
     const data = JSON.stringify(user);
-
     await redis.set(`user:addr:${lowerAddr}`, data);
     await redis.set(`user:pid:${phoneId}`, data);
     await redis.sadd("directory:users", lowerAddr);
@@ -55,7 +53,6 @@ class RedisDB {
     return user;
   }
 
-  // ... (rest of methods getByAddress, getByPhoneId, getAllUsers remain the same)
   async getByAddress(address: string): Promise<Callee | null> {
     const data = await redis.get(`user:addr:${address.toLowerCase()}`);
     return data ? JSON.parse(data) : null;
