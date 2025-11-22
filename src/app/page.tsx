@@ -2,9 +2,9 @@
 
 import { WalletConnectButton } from '@/components/wallet-connect-button';
 import { YourPriceCard } from '@/components/your-price-card';
-import { CallCard } from '@/components/call-card';
+// import { CallCard } from '@/components/call-card'; // Hidden debug component
 import { CallListCard } from '@/components/call-list-card';
-import TestPayment from "./components/TestPayment";
+// import TestPayment from "./components/TestPayment"; // Hidden debug component
 
 export default function Home() {
   return (
@@ -22,20 +22,20 @@ export default function Home() {
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">
         {/* Responsive two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-          {/* Left column - Your Price (larger on desktop) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left column - Your Price */}
           <div className="space-y-6">
             <YourPriceCard />
-            <CallCard />
+            {/* <CallCard /> */} {/* Hidden debug component - "Call Someone" World Payment */}
           </div>
 
-          {/* Right column - Call List (smaller on desktop) */}
-          <div>
+          {/* Right column - Call List */}
+          <div className="flex flex-col">
             <CallListCard />
           </div>
         </div>
 
-        <TestPayment />
+        {/* <TestPayment /> */} {/* Hidden debug component - x402 Payment Test */}
       </main>
     </div>
   );
