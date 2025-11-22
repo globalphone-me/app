@@ -10,6 +10,12 @@
   },
   "dependencies": {
     "@coinbase/x402": "^0.7.3",
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@rainbow-me/rainbowkit": "^2.2.9",
+    "@tanstack/react-query": "^5.90.10",
     "@worldcoin/minikit-js": "^1.9.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -20,6 +26,7 @@
     "react-dom": "19.2.0",
     "tailwind-merge": "^3.4.0",
     "viem": "^2.39.3",
+    "wagmi": "^2.19.5",
     "x402-fetch": "^0.7.3",
     "x402-next": "^0.7.3"
   },
