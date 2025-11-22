@@ -1,22 +1,18 @@
 "use client";
 
-import * as React from 'react';
-import { MiniKit } from '@worldcoin/minikit-js';
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { WagmiProvider, createConfig, http } from 'wagmi';
-import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
-import { injected, coinbaseWallet, metaMask } from 'wagmi/connectors';
-import { CHAIN, MAINNET, WORLDCHAIN } from '@/lib/config';
+import * as React from "react";
+import { MiniKit } from "@worldcoin/minikit-js";
+import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { WagmiProvider, http } from "wagmi";
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { CHAIN, MAINNET, WORLDCHAIN } from "@/lib/config";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
-const config = createConfig({
+const config = getDefaultConfig({
+  appName: "GlobalPhone",
+  projectId: "c191fcbb26ddb5417db1a43fe4e2c8f4",
   chains: [CHAIN, MAINNET, WORLDCHAIN],
-  connectors: [
-    injected({ target: 'metaMask' }),
-    metaMask(),
-    coinbaseWallet({ appName: 'GlobalPhone' }),
-  ],
   transports: {
     [CHAIN.id]: http(),
     [MAINNET.id]: http(),
@@ -43,7 +39,6 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-
   // Browser mode - use RainbowKit
   return (
     <MiniKitProvider>
@@ -55,6 +50,5 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
         </QueryClientProvider>
       </WagmiProvider>
     </MiniKitProvider>
-
   );
 }
