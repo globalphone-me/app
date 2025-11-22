@@ -233,8 +233,8 @@ export function CallListCard() {
   const paymentMethod = isMiniKitEnv ? 'World App' : isWalletEnv ? 'x402' : 'Not Connected';
 
   return (
-    <Card className="w-full">
-      <CardHeader>
+    <Card className="w-full flex flex-col h-full">
+      <CardHeader className="flex-shrink-0">
         <CardTitle>Make a Call - No Phone Nº Required</CardTitle>
         <div className="flex justify-between items-center text-xs mt-2">
           <span className="text-muted-foreground font-mono">
@@ -247,7 +247,7 @@ export function CallListCard() {
           </span>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-y-auto min-h-0">
         {activeCall ? (
           <div className="bg-red-50 p-4 rounded text-center">
             <p className="mb-2 font-bold text-red-700">On a call...</p>
