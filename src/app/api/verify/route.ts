@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyCloudProof, IVerifyResponse, ISuccessResult } from '@worldcoin/minikit-js';
+import { verifications, cleanupOldVerifications } from '@/lib/payment-store';
 
 interface IRequestPayload {
   payload: ISuccessResult;
@@ -28,9 +29,25 @@ export async function POST(req: NextRequest) {
     )) as IVerifyResponse;
 
     if (verifyRes.success) {
-      // This is where you should perform backend actions if the verification succeeds
-      // Such as, setting a user as "verified" in a database
-      return NextResponse.json({ success: true, verifyRes }, { status: 200 });
+      // Store verification in memory with nullifier hash
+      verifications.set(payload.nullifier_hash, {
+        nullifierHash: payload.nullifier_hash,
+        action,
+        verificationLevel: payload.verification_level,
+        createdAt: Date.now(),
+      });
+
+      // Clean up old verifications
+      cleanupOldVerifications();
+
+      console.log('[DEBUG] Verification stored:', payload.nullifier_hash);
+      console.log('[DEBUG] Total verifications:', verifications.size);
+
+      return NextResponse.json({
+        success: true,
+        verifyRes,
+        nullifierHash: payload.nullifier_hash,
+      }, { status: 200 });
     } else {
       // This is where you should handle errors from the World ID /verify endpoint.
       // Usually these errors are due to a user having already verified.

@@ -2,6 +2,7 @@
 
 import { WalletConnectButton } from '@/components/wallet-connect-button';
 import { YourPriceCard } from '@/components/your-price-card';
+import { CallCard } from '@/components/call-card';
 import { CallListCard } from '@/components/call-list-card';
 
 export default function Home() {
@@ -22,8 +23,9 @@ export default function Home() {
         {/* Responsive two-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
           {/* Left column - Your Price (larger on desktop) */}
-          <div>
+          <div className="space-y-6">
             <YourPriceCard />
+            <CallCard />
           </div>
 
           {/* Right column - Call List (smaller on desktop) */}

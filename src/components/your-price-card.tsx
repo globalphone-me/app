@@ -28,7 +28,7 @@ export function YourPriceCard() {
   });
   const [hasSetup, setHasSetup] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [price, setPrice] = useState('5');
+  const [price, setPrice] = useState('0.1');
   const [onlyHumans, setOnlyHumans] = useState(false);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
   const [isEditing, setIsEditing] = useState(false);
