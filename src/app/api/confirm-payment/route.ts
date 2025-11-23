@@ -50,18 +50,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify that this payment is linked to a verified user
-    if (!storedReference.verifiedNullifier) {
+    // Verify the recipient still exists and check their verification requirements
+    const recipient = await db.getByAddress(storedReference.recipientAddress);
+
+    if (!recipient) {
       return NextResponse.json(
-        { success: false, error: "Payment not linked to verification" },
+        { success: false, error: "Recipient not found" },
+        { status: 404 },
+      );
+    }
+
+    // If recipient requires humans only, verify that a nullifier was provided
+    if (recipient.onlyHumans && !storedReference.verifiedNullifier) {
+      return NextResponse.json(
+        { success: false, error: "This user only accepts calls from verified humans" },
         { status: 403 },
       );
     }
 
-    console.log(
-      "[DEBUG] Payment linked to verification:",
-      storedReference.verifiedNullifier,
-    );
+    // Log verification status
+    if (storedReference.verifiedNullifier) {
+      console.log(
+        "[DEBUG] Payment linked to verification:",
+        storedReference.verifiedNullifier,
+      );
+    } else {
+      console.log(
+        "[DEBUG] Payment does not require verification (recipient allows non-verified callers)",
+      );
+    }
 
     // Verify the payment with World Developer Portal API
     const appId = process.env.APP_ID;

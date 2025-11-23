@@ -257,7 +257,7 @@ export function YourPriceCard() {
             {/* Rules Section (Collapsed for brevity, same as before) */}
             <div className="space-y-3">
               <label className="text-sm font-medium">
-                Custom Pricing Rules
+                Custom Pricing Rules (Beta)
               </label>
               {pricingRules.map((rule) => (
                 <div

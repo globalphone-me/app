@@ -13,6 +13,7 @@ interface CallTarget {
   address: string;
   displayName: string;
   price: number;
+  onlyHumans?: boolean;
 }
 
 export function CallListCard() {
@@ -83,6 +84,10 @@ export function CallListCard() {
       return;
     }
 
+    // Find the target user to check if verification is required
+    const targetUser = users.find(u => u.address === targetAddress);
+    const requiresVerification = targetUser?.onlyHumans || false;
+
     try {
       let phoneId: string;
       let token: string;
@@ -134,39 +139,43 @@ export function CallListCard() {
           return;
         }
 
-        // STEP 1: Verify humanity with World ID
-        setStatus("🔍 Verifying humanity...");
+        // STEP 1: Verify humanity with World ID (only if required)
+        let nullifierHash: string | null = null;
 
-        const verifyPayload: VerifyCommandInput = {
-          action: 'call-payment-gate',
-          verification_level: VerificationLevel.Device,
-        };
+        if (requiresVerification) {
+          setStatus("🔍 Verifying humanity...");
 
-        const { finalPayload: verifyResult } = await MiniKit.commandsAsync.verify(verifyPayload);
-
-        if (verifyResult.status === 'error') {
-          setStatus("❌ Verification cancelled");
-          return;
-        }
-
-        // Verify the proof in backend
-        const verifyResponse = await fetch('/api/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            payload: verifyResult as ISuccessResult,
+          const verifyPayload: VerifyCommandInput = {
             action: 'call-payment-gate',
-          }),
-        });
+            verification_level: VerificationLevel.Device,
+          };
 
-        const verifyResponseJson = await verifyResponse.json();
+          const { finalPayload: verifyResult } = await MiniKit.commandsAsync.verify(verifyPayload);
 
-        if (!verifyResponse.ok || !verifyResponseJson.success) {
-          setStatus("❌ Verification failed");
-          return;
+          if (verifyResult.status === 'error') {
+            setStatus("❌ Verification cancelled");
+            return;
+          }
+
+          // Verify the proof in backend
+          const verifyResponse = await fetch('/api/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              payload: verifyResult as ISuccessResult,
+              action: 'call-payment-gate',
+            }),
+          });
+
+          const verifyResponseJson = await verifyResponse.json();
+
+          if (!verifyResponse.ok || !verifyResponseJson.success) {
+            setStatus("❌ Verification failed");
+            return;
+          }
+
+          nullifierHash = verifyResponseJson.nullifierHash;
         }
-
-        const nullifierHash = verifyResponseJson.nullifierHash;
 
         // STEP 2: Initiate payment
         setStatus("💰 Processing payment...");
@@ -315,17 +324,24 @@ export function CallListCard() {
           </div>
         ) : (
           <div className="space-y-1">
-            {users.map((user, index) => (
-              <div key={user.address}>
-                <CallListItem
-                  address={user.address}
-                  displayName={user.displayName}
-                  price={user.price}
-                  onCall={() => handleCall(user.address)}
-                />
-                {index < users.length - 1 && <Separator />}
-              </div>
-            ))}
+            {users.map((user, index) => {
+              // Disable call button if user requires humans only and caller is not using World App
+              const disabled = user.onlyHumans && !isMiniKitEnv;
+
+              return (
+                <div key={user.address}>
+                  <CallListItem
+                    address={user.address}
+                    displayName={user.displayName}
+                    price={user.price}
+                    onCall={() => handleCall(user.address)}
+                    onlyHumans={user.onlyHumans}
+                    disabled={disabled}
+                  />
+                  {index < users.length - 1 && <Separator />}
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

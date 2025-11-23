@@ -25,6 +25,14 @@ const handler = async (request: NextRequest): Promise<NextResponse> => {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Block x402 calls to users who only accept verified humans
+    if (user.onlyHumans) {
+      return NextResponse.json(
+        { error: "This user only accepts calls from verified humans. Please use World App." },
+        { status: 403 }
+      );
+    }
+
     const token = signCallToken(user.phoneId);
 
     return NextResponse.json({

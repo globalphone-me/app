@@ -12,6 +12,7 @@ export async function GET() {
     address: u.address,
     displayName: u.name || u.address,
     price: parseFloat(u.price),
+    onlyHumans: u.onlyHumans || false,
   }));
 
   return NextResponse.json(list);
