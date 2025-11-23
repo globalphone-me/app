@@ -3,6 +3,7 @@ import { MiniAppPaymentSuccessPayload } from "@worldcoin/minikit-js";
 import { SignJWT } from "jose";
 import { paymentReferences } from "@/lib/payment-store";
 import { db } from "@/lib/db";
+import { signCallToken } from "@/lib/auth";
 
 interface ConfirmPaymentRequest {
   payload: MiniAppPaymentSuccessPayload;
@@ -101,49 +102,18 @@ export async function POST(req: NextRequest) {
       transaction.reference === payload.reference &&
       transaction.transaction_status !== "failed"
     ) {
-      // Generate JWT token for authenticated call access
-      const jwtSecret = process.env.JWT_SECRET;
 
-      if (!jwtSecret) {
-        console.error("Missing JWT_SECRET environment variable");
-        return NextResponse.json(
-          { success: false, error: "Server configuration error" },
-          { status: 500 },
-        );
-      }
+    const user = await db.getByAddress(storedReference.recipientAddress);
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+      const token = signCallToken(user.phoneId) 
 
-      const secret = new TextEncoder().encode(jwtSecret);
-
-      const token = await new SignJWT({
-        reference: payload.reference,
-        callerAddress: transaction.from,
-        recipientAddress: storedReference.recipientAddress,
-        amount: storedReference.amount,
-        transactionHash: transaction.transaction_hash,
-        transactionStatus: transaction.transaction_status,
-      })
-        .setProtectedHeader({ alg: "HS256" })
-        .setIssuedAt()
-        .setExpirationTime("1h") // Token expires in 1 hour
-        .sign(secret);
-
-      // Look up the recipient in the database to get phoneId
-      const recipient = await db.getByAddress(storedReference.recipientAddress);
-
-      if (!recipient) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Recipient not found in database",
-          },
-          { status: 404 },
-        );
-      }
 
       return NextResponse.json({
         success: true,
-        token,
-        phoneId: recipient.phoneId,
+        token: token,
+        phoneId: user.phoneId,
         transaction: {
           status: transaction.transaction_status,
           hash: transaction.transaction_hash,
