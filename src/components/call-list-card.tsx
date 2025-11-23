@@ -31,7 +31,6 @@ export function CallListCard() {
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [deviceStatus, setDeviceStatus] = useState("Initializing...");
   const [status, setStatus] = useState<string>("");
-  const [currentAmount] = useState('0.1'); // Default amount for World App
   const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
 
   // 1. Initialize Twilio Device on Mount
@@ -180,12 +179,15 @@ export function CallListCard() {
         // STEP 2: Initiate payment
         setStatus("💰 Processing payment...");
 
+        // Use the target user's actual price
+        const paymentAmount = targetUser?.price.toString() || '0.1';
+
         const initiateRes = await fetch('/api/initiate-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             recipientAddress: targetAddress,
-            amount: currentAmount,
+            amount: paymentAmount,
             verifiedNullifier: nullifierHash,
           }),
         });
@@ -204,7 +206,7 @@ export function CallListCard() {
           tokens: [
             {
               symbol: Tokens.USDC,
-              token_amount: tokenToDecimals(parseFloat(currentAmount), Tokens.USDC).toString(),
+              token_amount: tokenToDecimals(parseFloat(paymentAmount), Tokens.USDC).toString(),
             },
           ],
           description: `Call to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)}`,

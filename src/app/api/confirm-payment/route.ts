@@ -119,18 +119,30 @@ export async function POST(req: NextRequest) {
       transaction.reference === payload.reference &&
       transaction.transaction_status !== "failed"
     ) {
+      // Verify the payment amount matches the recipient's price
+      const expectedAmount = parseFloat(recipient.price);
+      const paidAmount = parseFloat(transaction.token_amount);
 
-    const user = await db.getByAddress(storedReference.recipientAddress);
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-      const token = signCallToken(user.phoneId) 
+      console.log('[DEBUG] Expected amount:', expectedAmount);
+      console.log('[DEBUG] Paid amount:', paidAmount);
+
+      if (paidAmount < expectedAmount) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Insufficient payment. Expected ${expectedAmount} USDC, received ${paidAmount} USDC`
+          },
+          { status: 400 },
+        );
+      }
+
+      const token = signCallToken(recipient.phoneId) 
 
 
       return NextResponse.json({
         success: true,
         token: token,
-        phoneId: user.phoneId,
+        phoneId: recipient.phoneId,
         transaction: {
           status: transaction.transaction_status,
           hash: transaction.transaction_hash,
