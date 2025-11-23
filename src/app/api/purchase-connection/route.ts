@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withX402 } from "x402-next";
 import { db } from "@/lib/db";
 import { signCallToken } from "@/lib/auth";
 
-export async function POST(request: NextRequest) {
+const PAY_TO_ADDRESS = process.env.NEXT_PUBLIC_WALLET_ADDRESS as `0x${string}`;
+const FACILITATOR_URL = "https://x402.org/facilitator";
+
+// FIX: Added ': Promise<NextResponse>' to prevent strict type inference
+const handler = async (request: NextRequest): Promise<NextResponse> => {
   try {
     const body = await request.json();
     const { targetAddress } = body;
@@ -20,7 +25,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Generate token using the retrieved phoneId
     const token = signCallToken(user.phoneId);
 
     return NextResponse.json({
@@ -32,4 +36,22 @@ export async function POST(request: NextRequest) {
     console.error(error);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-}
+};
+
+export const POST = withX402(
+  handler,
+  PAY_TO_ADDRESS,
+  {
+    price: "0.05",
+    network: "base-sepolia",
+    config: {
+      description: "Purchase a secure phone connection",
+    },
+  },
+  {
+    url: FACILITATOR_URL,
+  },
+  {
+    appName: "Hackathon Voice App",
+  },
+);
