@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { MiniKit, PayCommandInput, Tokens, tokenToDecimals, VerifyCommandInput, VerificationLevel, ISuccessResult } from '@worldcoin/minikit-js';
+import { MiniKit, PayCommandInput, Tokens, tokenToDecimals, VerifyCommandInput, VerificationLevel, ISuccessResult, Permission, RequestPermissionPayload } from '@worldcoin/minikit-js';
 import { Device, Call } from "@twilio/voice-sdk";
 import { useWalletClient, useAccount } from 'wagmi';
 import { wrapFetchWithPayment } from 'x402-fetch';
@@ -19,6 +19,7 @@ export function CallCard() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState<'idle' | 'verifying' | 'paying' | 'calling'>('idle');
+  const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
 
   // Twilio State
   const [device, setDevice] = useState<Device | null>(null);
@@ -150,6 +151,43 @@ export function CallCard() {
     setError('');
 
     try {
+      // STEP 0: Request microphone permission before anything else
+      try {
+        // Check current permissions
+        const { finalPayload: permissionsResult } = await MiniKit.commandsAsync.getPermissions();
+
+        if (permissionsResult.status === 'success') {
+          const hasMicrophonePermission = permissionsResult.permissions[Permission.Microphone] === true;
+
+          if (!hasMicrophonePermission) {
+            const requestPermissionPayload: RequestPermissionPayload = {
+              permission: Permission.Microphone,
+            };
+
+            const { finalPayload: permissionResult } = await MiniKit.commandsAsync.requestPermission(requestPermissionPayload);
+
+            if (permissionResult.status === 'error') {
+              const errorCode = permissionResult.error_code as string;
+              if (errorCode === 'world_app_permission_not_enabled') {
+                throw new Error('Please enable microphone for World App in your device settings first');
+              } else if (errorCode === 'user_rejected') {
+                throw new Error('Microphone permission denied');
+              } else if (errorCode === 'permission_disabled') {
+                throw new Error('Microphone permission is disabled for World App');
+              } else {
+                throw new Error(`Permission error: ${errorCode}`);
+              }
+            }
+
+            setMicrophonePermissionGranted(true);
+          } else {
+            setMicrophonePermissionGranted(true);
+          }
+        }
+      } catch (permError) {
+        throw permError;
+      }
+
       // STEP 1: Verify humanity with World ID
       setCurrentStep('verifying');
 
