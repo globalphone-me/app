@@ -19,6 +19,7 @@
     "@tanstack/react-query": "^5.90.10",
     "@twilio/voice-sdk": "^2.16.0",
     "@worldcoin/minikit-js": "^1.9.8",
+    "@yssf_io/x402-next": "^0.7.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "ioredis": "^5.8.2",
@@ -31,8 +32,7 @@
     "twilio": "^5.10.6",
     "viem": "^2.39.3",
     "wagmi": "^2.19.5",
-    "x402-fetch": "^0.7.3",
-    "x402-next": "^0.7.3"
+    "x402-fetch": "^0.7.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

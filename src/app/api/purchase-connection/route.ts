@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withX402 } from "x402-next";
+import {
+  Network,
+  PaymentMiddlewareConfig,
+  RouteConfig,
+  withX402,
+} from "@yssf_io/x402-next";
 import { db } from "@/lib/db";
 import { signCallToken } from "@/lib/auth";
+import { z } from "zod";
 
 const PAY_TO_ADDRESS = process.env.NEXT_PUBLIC_WALLET_ADDRESS as `0x${string}`;
 const FACILITATOR_URL = "https://x402.org/facilitator";
@@ -28,8 +34,11 @@ const handler = async (request: NextRequest): Promise<NextResponse> => {
     // Block x402 calls to users who only accept verified humans
     if (user.onlyHumans) {
       return NextResponse.json(
-        { error: "This user only accepts calls from verified humans. Please use World App." },
-        { status: 403 }
+        {
+          error:
+            "This user only accepts calls from verified humans. Please use World App.",
+        },
+        { status: 403 },
       );
     }
 
@@ -46,16 +55,25 @@ const handler = async (request: NextRequest): Promise<NextResponse> => {
   }
 };
 
-export const POST = withX402(
-  handler,
-  PAY_TO_ADDRESS,
-  {
-    price: "0.05",
+const getRouteConfig = async (req: NextRequest): Promise<RouteConfig> => {
+  const clonedReq = req.clone();
+  const { targetAddress } = await clonedReq.json();
+
+  const user = await db.getByAddress(targetAddress);
+
+  return {
+    price: user?.price || "1000000",
     network: "base-sepolia",
     config: {
       description: "Purchase a secure phone connection",
     },
-  },
+  };
+};
+
+export const POST = withX402(
+  handler,
+  PAY_TO_ADDRESS,
+  getRouteConfig,
   {
     url: FACILITATOR_URL,
   },
@@ -63,3 +81,21 @@ export const POST = withX402(
     appName: "Hackathon Voice App",
   },
 );
+
+// export const POST = withX402(
+//   handler,
+//   PAY_TO_ADDRESS,
+//   {
+//     price: "1.1",
+//     network: "base-sepolia",
+//     config: {
+//       description: "Purchase a secure phone connection",
+//     },
+//   },
+//   {
+//     url: FACILITATOR_URL,
+//   },
+//   {
+//     appName: "Hackathon Voice App",
+//   },
+// );
