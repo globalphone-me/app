@@ -12,10 +12,9 @@ import "@rainbow-me/rainbowkit/styles.css";
 const config = getDefaultConfig({
   appName: "GlobalPhone",
   projectId: "c191fcbb26ddb5417db1a43fe4e2c8f4",
-  chains: [CHAIN, MAINNET, WORLDCHAIN],
+  chains: [CHAIN, WORLDCHAIN],
   transports: {
     [CHAIN.id]: http(),
-    [MAINNET.id]: http(),
     [WORLDCHAIN.id]: http(),
   },
   ssr: true,

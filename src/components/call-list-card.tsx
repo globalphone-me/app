@@ -7,7 +7,17 @@ import { Device, Call } from "@twilio/voice-sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CallListItem } from "@/components/call-list-item";
-import { MiniKit, PayCommandInput, Tokens, tokenToDecimals, VerifyCommandInput, VerificationLevel, ISuccessResult, Permission, RequestPermissionPayload } from '@worldcoin/minikit-js';
+import {
+  MiniKit,
+  PayCommandInput,
+  Tokens,
+  tokenToDecimals,
+  VerifyCommandInput,
+  VerificationLevel,
+  ISuccessResult,
+  Permission,
+  RequestPermissionPayload,
+} from "@worldcoin/minikit-js";
 
 interface CallTarget {
   address: string;
@@ -31,7 +41,8 @@ export function CallListCard() {
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [deviceStatus, setDeviceStatus] = useState("Initializing...");
   const [status, setStatus] = useState<string>("");
-  const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
+  const [microphonePermissionGranted, setMicrophonePermissionGranted] =
+    useState(false);
 
   // 1. Initialize Twilio Device on Mount
   useEffect(() => {
@@ -84,7 +95,7 @@ export function CallListCard() {
     }
 
     // Find the target user to check if verification is required
-    const targetUser = users.find(u => u.address === targetAddress);
+    const targetUser = users.find((u) => u.address === targetAddress);
     const requiresVerification = targetUser?.onlyHumans || false;
 
     try {
@@ -99,10 +110,12 @@ export function CallListCard() {
 
         try {
           // Check current permissions
-          const { finalPayload: permissionsResult } = await MiniKit.commandsAsync.getPermissions();
+          const { finalPayload: permissionsResult } =
+            await MiniKit.commandsAsync.getPermissions();
 
-          if (permissionsResult.status === 'success') {
-            const hasMicrophonePermission = permissionsResult.permissions[Permission.Microphone] === true;
+          if (permissionsResult.status === "success") {
+            const hasMicrophonePermission =
+              permissionsResult.permissions[Permission.Microphone] === true;
 
             if (!hasMicrophonePermission) {
               setStatus("🎤 Requesting microphone access...");
@@ -111,16 +124,23 @@ export function CallListCard() {
                 permission: Permission.Microphone,
               };
 
-              const { finalPayload: permissionResult } = await MiniKit.commandsAsync.requestPermission(requestPermissionPayload);
+              const { finalPayload: permissionResult } =
+                await MiniKit.commandsAsync.requestPermission(
+                  requestPermissionPayload,
+                );
 
-              if (permissionResult.status === 'error') {
+              if (permissionResult.status === "error") {
                 const errorCode = permissionResult.error_code as string;
-                if (errorCode === 'world_app_permission_not_enabled') {
-                  setStatus("❌ Please enable microphone for World App in your device settings first");
-                } else if (errorCode === 'user_rejected') {
+                if (errorCode === "world_app_permission_not_enabled") {
+                  setStatus(
+                    "❌ Please enable microphone for World App in your device settings first",
+                  );
+                } else if (errorCode === "user_rejected") {
                   setStatus("❌ Microphone permission denied");
-                } else if (errorCode === 'permission_disabled') {
-                  setStatus("❌ Microphone permission is disabled for World App");
+                } else if (errorCode === "permission_disabled") {
+                  setStatus(
+                    "❌ Microphone permission is disabled for World App",
+                  );
                 } else {
                   setStatus(`❌ Permission error: ${errorCode}`);
                 }
@@ -145,24 +165,25 @@ export function CallListCard() {
           setStatus("🔍 Verifying humanity...");
 
           const verifyPayload: VerifyCommandInput = {
-            action: 'call-payment-gate',
+            action: "call-payment-gate",
             verification_level: VerificationLevel.Device,
           };
 
-          const { finalPayload: verifyResult } = await MiniKit.commandsAsync.verify(verifyPayload);
+          const { finalPayload: verifyResult } =
+            await MiniKit.commandsAsync.verify(verifyPayload);
 
-          if (verifyResult.status === 'error') {
+          if (verifyResult.status === "error") {
             setStatus("❌ Verification cancelled");
             return;
           }
 
           // Verify the proof in backend
-          const verifyResponse = await fetch('/api/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const verifyResponse = await fetch("/api/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               payload: verifyResult as ISuccessResult,
-              action: 'call-payment-gate',
+              action: "call-payment-gate",
             }),
           });
 
@@ -180,11 +201,11 @@ export function CallListCard() {
         setStatus("💰 Processing payment...");
 
         // Use the target user's actual price
-        const paymentAmount = targetUser?.price.toString() || '0.1';
+        const paymentAmount = targetUser?.price.toString() || "0.1";
 
-        const initiateRes = await fetch('/api/initiate-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const initiateRes = await fetch("/api/initiate-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             recipientAddress: targetAddress,
             amount: paymentAmount,
@@ -206,24 +227,28 @@ export function CallListCard() {
           tokens: [
             {
               symbol: Tokens.USDC,
-              token_amount: tokenToDecimals(parseFloat(paymentAmount), Tokens.USDC).toString(),
+              token_amount: tokenToDecimals(
+                parseFloat(paymentAmount),
+                Tokens.USDC,
+              ).toString(),
             },
           ],
           description: `Call to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)}`,
         };
 
         // STEP 4: Send payment command via MiniKit
-        const { finalPayload: payResult } = await MiniKit.commandsAsync.pay(payPayload);
+        const { finalPayload: payResult } =
+          await MiniKit.commandsAsync.pay(payPayload);
 
-        if (payResult.status === 'error') {
+        if (payResult.status === "error") {
           setStatus("❌ Payment cancelled");
           return;
         }
 
         // STEP 5: Confirm payment in backend
-        const confirmRes = await fetch('/api/confirm-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const confirmRes = await fetch("/api/confirm-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ payload: payResult }),
         });
 
@@ -240,8 +265,12 @@ export function CallListCard() {
         // x402 Payment Flow
         setStatus("💰 Processing Payment...");
 
-        // @ts-expect-error - x402-fetch types might expect a strict Viem client, but Wagmi's is compatible
-        const secureFetch = wrapFetchWithPayment(fetch, walletClient);
+        const secureFetch = wrapFetchWithPayment(
+          fetch,
+          // @ts-expect-error - x402-fetch types might expect a strict Viem client, but Wagmi's is compatible
+          walletClient,
+          BigInt(10000 * 10 ** 6),
+        );
 
         const response = await secureFetch("/api/purchase-connection", {
           method: "POST",
@@ -296,7 +325,11 @@ export function CallListCard() {
     }
   };
 
-  const paymentMethod = isMiniKitEnv ? 'World App' : isWalletEnv ? 'x402' : 'Not Connected';
+  const paymentMethod = isMiniKitEnv
+    ? "World App"
+    : isWalletEnv
+      ? "x402"
+      : "Not Connected";
 
   return (
     <Card className="w-full flex flex-col h-full">
