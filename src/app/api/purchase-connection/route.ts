@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  Network,
-  PaymentMiddlewareConfig,
-  RouteConfig,
-  withX402,
-} from "@yssf_io/x402-next";
+import { RouteConfig, withX402 } from "@yssf_io/x402-next";
 import { db } from "@/lib/db";
 import { signCallToken } from "@/lib/auth";
-import { z } from "zod";
+import { facilitator } from "@coinbase/x402";
 
 const PAY_TO_ADDRESS = process.env.NEXT_PUBLIC_WALLET_ADDRESS as `0x${string}`;
 const FACILITATOR_URL = "https://x402.org/facilitator";
 
-// FIX: Added ': Promise<NextResponse>' to prevent strict type inference
 const handler = async (request: NextRequest): Promise<NextResponse> => {
   try {
     const body = await request.json();
@@ -63,7 +57,7 @@ const getRouteConfig = async (req: NextRequest): Promise<RouteConfig> => {
 
   return {
     price: user?.price || "1000000",
-    network: "base-sepolia",
+    network: "base",
     config: {
       description: "Purchase a secure phone connection",
     },
@@ -74,9 +68,7 @@ export const POST = withX402(
   handler,
   PAY_TO_ADDRESS,
   getRouteConfig,
-  {
-    url: FACILITATOR_URL,
-  },
+  facilitator,
   {
     appName: "Hackathon Voice App",
   },
