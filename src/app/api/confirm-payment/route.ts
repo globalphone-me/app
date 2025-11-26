@@ -63,7 +63,10 @@ export async function POST(req: NextRequest) {
     // If recipient requires humans only, verify that a nullifier was provided
     if (recipient.onlyHumans && !storedReference.verifiedNullifier) {
       return NextResponse.json(
-        { success: false, error: "This user only accepts calls from verified humans" },
+        {
+          success: false,
+          error: "This user only accepts calls from verified humans",
+        },
         { status: 403 },
       );
     }
@@ -123,21 +126,24 @@ export async function POST(req: NextRequest) {
       const expectedAmount = parseFloat(recipient.price);
       const paidAmount = parseFloat(transaction.token_amount);
 
-      console.log('[DEBUG] Expected amount:', expectedAmount);
-      console.log('[DEBUG] Paid amount:', paidAmount);
+      console.log("[DEBUG] Expected amount:", expectedAmount);
+      console.log("[DEBUG] Paid amount:", paidAmount);
 
       if (paidAmount < expectedAmount) {
         return NextResponse.json(
           {
             success: false,
-            error: `Insufficient payment. Expected ${expectedAmount} USDC, received ${paidAmount} USDC`
+            error: `Insufficient payment. Expected ${expectedAmount} USDC, received ${paidAmount} USDC`,
           },
           { status: 400 },
         );
       }
 
-      const token = signCallToken(recipient.phoneId) 
+      const paymentId = crypto.randomUUID();
 
+      await db.createCallSession(paymentId);
+
+      const token = signCallToken(recipient.phoneId, paymentId);
 
       return NextResponse.json({
         success: true,

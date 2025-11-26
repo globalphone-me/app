@@ -18,10 +18,10 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 items-center">
               <Image
-                src="/globalphone_logo.png"
+                src="/logo_transparent.png"
                 alt="GlobalPhone Logo"
-                width={32}
-                height={32}
+                width={60}
+                height={60}
                 className="object-contain"
               />
               <h1 className="text-2xl font-bold">GlobalPhone</h1>

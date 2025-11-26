@@ -36,7 +36,11 @@ const handler = async (request: NextRequest): Promise<NextResponse> => {
       );
     }
 
-    const token = signCallToken(user.phoneId);
+    const paymentId = crypto.randomUUID();
+
+    await db.createCallSession(paymentId);
+
+    const token = signCallToken(user.phoneId, paymentId);
 
     return NextResponse.json({
       status: "success",
