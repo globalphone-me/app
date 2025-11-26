@@ -11,10 +11,10 @@ export async function POST(request: Request) {
   const gather = twiml.gather({
     action: `${process.env.NEXT_PUBLIC_APP_URL}/api/voice/connect?parentSid=${parentSid}`,
     numDigits: 1,
-    timeout: 5, // Wait 10s for input. If Voicemail, this times out.
+    timeout: 10, // Wait 10s for input. If Voicemail, this times out.
   });
 
-  gather.say("You have a paid call from the Global Phone. Press 1 to accept.");
+  gather.say("You have a paid call from Global Phone. Press 1 to accept.");
 
   // If they don't press 1 (e.g. Voicemail), we hang up.
   // Since we hang up here, the "Bridge" never completes.
