@@ -3,6 +3,13 @@ import crypto from "crypto";
 
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 
+export interface CallSession {
+  id: string;
+  paymentId: string;
+  status: "PENDING" | "VERIFIED" | "COMPLETED" | "FAILED";
+  twilioCallSid?: string;
+}
+
 export interface Callee {
   id: string;
   name: string;
@@ -75,6 +82,83 @@ class RedisDB {
         users.push(JSON.parse(result));
     });
     return users;
+  }
+
+  // --- NEW SESSION METHODS ---
+
+  // 1. Start a session (When payment is made)
+  async createCallSession(paymentId: string) {
+    const session: CallSession = {
+      id: crypto.randomUUID(),
+      paymentId,
+      status: "PENDING",
+    };
+    await redis.set(`session:${paymentId}`, JSON.stringify(session));
+    return session;
+  }
+
+  // 2. Link Twilio CallSid (Called when call starts)
+  async linkCallSid(paymentId: string, callSid: string) {
+    const data = await redis.get(`session:${paymentId}`);
+    if (!data) return;
+    const session = JSON.parse(data);
+    session.twilioCallSid = callSid;
+
+    await redis.set(`session:${paymentId}`, JSON.stringify(session));
+    // Index by SID for fast lookup in webhooks
+    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
+  }
+
+  // 3. Mark as Verified (Called when human presses 1)
+  async markSessionVerified(callSid: string) {
+    const data = await redis.get(`session:sid:${callSid}`);
+    if (!data) return;
+    const session = JSON.parse(data);
+    session.status = "VERIFIED";
+
+    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
+    await redis.set(`session:${session.paymentId}`, JSON.stringify(session));
+  }
+
+  // 2. Link Twilio CallSid (When call starts)
+  async updateSessionWithCallSid(paymentId: string, callSid: string) {
+    const data = await redis.get(`session:payment:${paymentId}`);
+    if (!data) return;
+
+    const session = JSON.parse(data);
+    session.twilioCallSid = callSid;
+
+    await redis.set(`session:payment:${paymentId}`, JSON.stringify(session));
+    // Also index by CallSid for the webhook
+    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
+  }
+
+  // 4. Get Session by SID
+  async getSessionBySid(callSid: string): Promise<CallSession | null> {
+    const data = await redis.get(`session:sid:${callSid}`);
+    return data ? JSON.parse(data) : null;
+  }
+
+  // 3. Finalize (When call ends)
+  async finalizeCallSession(
+    callSid: string,
+    status: CallSession["status"],
+    duration: number,
+  ) {
+    const data = await redis.get(`session:sid:${callSid}`);
+    if (!data) return null;
+
+    const session = JSON.parse(data);
+    session.status = status;
+    session.duration = duration;
+
+    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
+    await redis.set(
+      `session:payment:${session.paymentId}`,
+      JSON.stringify(session),
+    );
+
+    return session;
   }
 }
 

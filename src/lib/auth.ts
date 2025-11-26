@@ -7,12 +7,13 @@ const SECRET_KEY =
 export interface CallPayload {
   phoneId: string;
   timestamp: number;
+  paymentId: string;
 }
 
 // 1. Generate a token (Used after Payment is confirmed)
-export function signCallToken(phoneId: string): string {
+export function signCallToken(phoneId: string, paymentId: string): string {
   return jwt.sign(
-    { phoneId, timestamp: Date.now() },
+    { phoneId, timestamp: Date.now(), paymentId },
     SECRET_KEY,
     { expiresIn: "5m" }, // Token only valid for 5 minutes
   );
