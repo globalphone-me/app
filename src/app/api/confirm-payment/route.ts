@@ -141,7 +141,12 @@ export async function POST(req: NextRequest) {
 
       const paymentId = crypto.randomUUID();
 
-      await db.createCallSession(paymentId);
+      await db.createCallSession(
+        paymentId,
+        payload.from,
+        recipient.phoneId,
+        recipient.price,
+      );
 
       const token = signCallToken(recipient.phoneId, paymentId);
 
