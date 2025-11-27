@@ -27,7 +27,7 @@ interface CallTarget {
 }
 
 export function CallListCard() {
-  const { isConnected: wagmiConnected } = useAccount();
+  const { isConnected: wagmiConnected, address: userAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
 
   // Detect environment - prioritize MiniKit if available
@@ -275,7 +275,7 @@ export function CallListCard() {
         const response = await secureFetch("/api/purchase-connection", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ targetAddress }),
+          body: JSON.stringify({ targetAddress, callerAddress: userAddress }),
         });
 
         if (!response.ok) {

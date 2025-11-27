@@ -5,16 +5,23 @@ import { signCallToken } from "@/lib/auth";
 import { facilitator } from "@coinbase/x402";
 
 const PAY_TO_ADDRESS = process.env.NEXT_PUBLIC_WALLET_ADDRESS as `0x${string}`;
-const FACILITATOR_URL = "https://x402.org/facilitator";
 
 const handler = async (request: NextRequest): Promise<NextResponse> => {
   try {
     const body = await request.json();
-    const { targetAddress } = body;
+    const { callerAddress, targetAddress } = body;
 
     if (!targetAddress) {
       return NextResponse.json(
         { error: "Target Address required" },
+        { status: 400 },
+      );
+    }
+
+    // TODO: validate it's the right callerAddress
+    if (!callerAddress) {
+      return NextResponse.json(
+        { error: "Caller Address required" },
         { status: 400 },
       );
     }
@@ -38,7 +45,12 @@ const handler = async (request: NextRequest): Promise<NextResponse> => {
 
     const paymentId = crypto.randomUUID();
 
-    await db.createCallSession(paymentId);
+    await db.createCallSession(
+      paymentId,
+      callerAddress,
+      user.phoneId,
+      user.price,
+    );
 
     const token = signCallToken(user.phoneId, paymentId);
 
