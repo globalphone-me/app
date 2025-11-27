@@ -7,6 +7,7 @@ import { Device, Call } from "@twilio/voice-sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CallListItem } from "@/components/call-list-item";
+import { useUsers } from "@/hooks/useUsers";
 import {
   MiniKit,
   PayCommandInput,
@@ -32,13 +33,15 @@ export function CallListCard() {
   const { isConnected: wagmiConnected, address: userAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
 
+  // Fetch users with React Query
+  const { data: users = [] } = useUsers();
+
   // Detect environment - prioritize MiniKit if available
   const isMiniKitEnv = isWorldApp();
   const isWalletEnv = !isMiniKitEnv && wagmiConnected && !!walletClient;
   const isConnected = isMiniKitEnv || isWalletEnv;
 
   // Twilio State
-  const [users, setUsers] = useState<CallTarget[]>([]);
   const [device, setDevice] = useState<Device | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [deviceStatus, setDeviceStatus] = useState("Initializing...");
@@ -52,15 +55,6 @@ export function CallListCard() {
 
     async function initTwilio() {
       try {
-        console.log("brooo?");
-        // A. Fetch Users
-        const usersResp = await fetch("/api/users");
-        console.log({ usersResp });
-        if (usersResp.ok) {
-          const usersData = await usersResp.json();
-          setUsers(usersData);
-        }
-
         const resp = await fetch("/api/token");
         const data = await resp.json();
 

@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Pencil, Plus, X, Loader2 } from "lucide-react";
 import { mainnet } from "wagmi/chains";
 import { isWorldApp } from "@/lib/world-app";
+import { useUpdateUser } from "@/hooks/useUsers";
 
 type RuleType = "poap" | "token" | "ens" | "humans";
 
@@ -26,9 +27,11 @@ export function YourPriceCard() {
     chainId: mainnet.id,
   });
 
+  // React Query mutation
+  const updateUser = useUpdateUser();
+
   // State
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [hasSetup, setHasSetup] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -135,32 +138,21 @@ export function YourPriceCard() {
   const handleConfirmSetup = async () => {
     if (!name || !phoneNumber || !price || !address) return; // Check Name
 
-    setIsSaving(true);
     try {
-      const response = await fetch("/api/user/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name, // Send Name
-          address,
-          phoneNumber,
-          price,
-          onlyHumans,
-          rules: pricingRules,
-        }),
+      await updateUser.mutateAsync({
+        name,
+        address,
+        phoneNumber,
+        price,
+        onlyHumans,
+        rules: pricingRules,
       });
 
-      if (response.ok) {
-        setHasSetup(true);
-        setIsEditing(false);
-      } else {
-        alert("Failed to save settings.");
-      }
+      setHasSetup(true);
+      setIsEditing(false);
     } catch (e) {
       console.error(e);
       alert("Error saving settings.");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -291,9 +283,9 @@ export function YourPriceCard() {
           <Button
             onClick={handleConfirmSetup}
             className="w-full"
-            disabled={!name || !phoneNumber || !price || isSaving}
+            disabled={!name || !phoneNumber || !price || updateUser.isPending}
           >
-            {isSaving ? (
+            {updateUser.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
               </>
