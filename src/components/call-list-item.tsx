@@ -9,7 +9,7 @@ import Image from 'next/image';
 interface CallListItemProps {
   address: string;
   displayName?: string;
-  price: number;
+  price: string;
   onCall: () => void;
   onlyHumans?: boolean;
   disabled?: boolean;

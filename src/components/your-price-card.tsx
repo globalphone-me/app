@@ -201,6 +201,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
       setHasSetup(true);
       setIsEditing(false);
+      if (onClose) onClose();
     } catch (e) {
       console.error(e);
       alert("Error saving settings.");
