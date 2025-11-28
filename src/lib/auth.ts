@@ -10,6 +10,10 @@ export interface CallPayload {
   paymentId: string;
 }
 
+export interface SessionPayload {
+  address: string;
+}
+
 // 1. Generate a token (Used after Payment is confirmed)
 export function signCallToken(phoneId: string, paymentId: string): string {
   return jwt.sign(
@@ -26,6 +30,25 @@ export function verifyCallToken(token: string): CallPayload | null {
     return decoded;
   } catch (error) {
     console.error("Invalid Call Token:", error);
+    return null;
+  }
+}
+
+// 3. Generate a Session Token (Used for the browser cookie)
+export function signSessionToken(address: string): string {
+  return jwt.sign(
+    { address },
+    SECRET_KEY,
+    { expiresIn: "7d" }, // Token valid for 7 days
+  );
+}
+
+// 4. Verify the Session Token (Used in API routes)
+export function verifySessionToken(token: string): SessionPayload | null {
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY) as SessionPayload;
+    return decoded;
+  } catch (error) {
     return null;
   }
 }

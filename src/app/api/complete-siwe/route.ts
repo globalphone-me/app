@@ -1,6 +1,14 @@
-import { cookies } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyMessage } from 'viem';
+import { signSessionToken } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  createClient,
+  createPublicClient,
+  getAddress,
+  http,
+  verifyMessage,
+} from "viem";
+import { worldchain } from "viem/chains";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,47 +16,55 @@ export async function POST(req: NextRequest) {
     const { payload, nonce } = body;
 
     // Verify we have the required fields
-    if (!payload || payload.status !== 'success') {
-      return NextResponse.json(
-        { error: 'Invalid payload' },
-        { status: 400 }
-      );
+    if (!payload || payload.status !== "success") {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     // Get the stored nonce from cookie
     const cookieStore = await cookies();
-    const storedNonce = cookieStore.get('siwe-nonce')?.value;
+    const storedNonce = cookieStore.get("siwe-nonce")?.value;
 
     if (!storedNonce || storedNonce !== nonce) {
       return NextResponse.json(
-        { error: 'Invalid or expired nonce' },
-        { status: 400 }
+        { error: "Invalid or expired nonce" },
+        { status: 400 },
       );
     }
 
+    // we need the client to verify smart account signatures (world app uses Safe)
+    const client = createPublicClient({ chain: worldchain, transport: http() });
+
     // Verify the signature
-    const isValid = await verifyMessage({
+    const isValid = await client.verifySiweMessage({
       address: payload.address as `0x${string}`,
       message: payload.message,
       signature: payload.signature as `0x${string}`,
     });
 
     if (!isValid) {
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     // Clear the used nonce
-    cookieStore.delete('siwe-nonce');
+    cookieStore.delete("siwe-nonce");
 
     // Create authenticated session
     // Store user session (you can use your preferred session management here)
-    cookieStore.set('wallet-address', payload.address, {
+    cookieStore.set("wallet-address", payload.address, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    // Generate JWT
+    const token = signSessionToken(payload.address);
+
+    // Set Secure Cookie
+    cookieStore.set("session_token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
@@ -57,10 +73,7 @@ export async function POST(req: NextRequest) {
       address: payload.address,
     });
   } catch (error) {
-    console.error('SIWE verification error:', error);
-    return NextResponse.json(
-      { error: 'Verification failed' },
-      { status: 500 }
-    );
+    console.error("SIWE verification error:", error);
+    return NextResponse.json({ error: "Verification failed" }, { status: 500 });
   }
 }

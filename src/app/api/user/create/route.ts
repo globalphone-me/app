@@ -1,13 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { cookies } from "next/headers";
+import { verifySessionToken } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. Get the session cookie set by /api/complete-siwe
+    const cookieStore = await cookies();
+    const token = cookieStore.get("session_token")?.value;
+    const session = token ? verifySessionToken(token) : null;
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { name, address, phoneNumber, price, onlyHumans, rules } = body;
 
     if (!name || !address || !phoneNumber || !price) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+
+    // 2. Verify ownership: Ensure the authenticated user is modifying their own profile
+    if (session.address.toLowerCase() !== address.toLowerCase()) {
+      return NextResponse.json(
+        { error: "Forbidden: You can only update your own profile" },
+        { status: 403 },
+      );
     }
 
     await db.addUser(
