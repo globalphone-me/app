@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyMessage } from "viem";
+import { createPublicClient, http, verifyMessage } from "viem";
 import { signSessionToken } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { CHAIN } from "@/lib/config";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,8 +15,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify the signature
-    const isValid = await verifyMessage({
+    // Create a public client to verify the signature
+    const publicClient = createPublicClient({
+      chain: CHAIN,
+      transport: http(),
+    });
+
+    // Verify the signature (supports Smart Accounts via ERC-1271)
+    const isValid = await publicClient.verifyMessage({
       address,
       message,
       signature,
