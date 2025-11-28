@@ -36,29 +36,29 @@ function StandardWalletButton() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
 
-  // Status of the current session check
+  // Status: 'authenticated' (valid cookie), 'unauthenticated' (needs sign)
+  // Note: We don't need an explicit 'loading' state; we infer loading when verifiedAddress !== address
   const [sessionStatus, setSessionStatus] = useState<
-    "loading" | "authenticated" | "unauthenticated"
-  >("loading");
-
-  // Track specifically which address was last verified to prevent race conditions
+    "authenticated" | "unauthenticated"
+  >("unauthenticated");
   const [verifiedAddress, setVerifiedAddress] = useState<string | null>(null);
 
-  // 1. Check session status whenever the address changes
+  // 1. Check session status when address changes
   useEffect(() => {
-    if (!address) {
-      setSessionStatus("unauthenticated");
-      setVerifiedAddress(null);
-      return;
-    }
+    if (!address) return;
 
-    // Reset verification state for the new address
-    setSessionStatus("loading");
-    setVerifiedAddress(null); // Important: Clear this so the other effect waits
+    let isMounted = true;
+
+    // We do NOT set state here synchronously to avoid linter errors.
+    // Instead, we just start the fetch. The 'Login' effect below guards against
+    // stale state by checking (verifiedAddress === address).
 
     fetch("/api/auth/status")
       .then((res) => res.json())
       .then((data) => {
+        if (!isMounted) return;
+
+        // Only update if the checked address matches the current wallet address
         if (
           data.authenticated &&
           data.address?.toLowerCase() === address.toLowerCase()
@@ -67,48 +67,64 @@ function StandardWalletButton() {
         } else {
           setSessionStatus("unauthenticated");
         }
-        // Mark this address as fully processed
+        // Mark this specific address as verified
         setVerifiedAddress(address);
       })
       .catch(() => {
+        if (!isMounted) return;
         setSessionStatus("unauthenticated");
         setVerifiedAddress(address);
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [address]);
 
-  // 2. Prompt for signature ONLY if we have verified THIS address and it's unauthenticated
-  const handleLogin = useCallback(async () => {
-    // strict check: verify we are connected, unauthenticated, AND we have finished checking the CURRENT address
+  // 2. Prompt for signature ONLY if connected, unauthenticated, and the address check is FINISHED
+  useEffect(() => {
+    // Crucial Check: verifiedAddress must match current address.
+    // If they differ, it means we are still fetching/loading for the new address.
     if (
       !isConnected ||
       !address ||
-      sessionStatus !== "unauthenticated" ||
-      verifiedAddress !== address
-    )
+      verifiedAddress !== address ||
+      sessionStatus !== "unauthenticated"
+    ) {
       return;
-
-    try {
-      const message = `Login to GlobalPhone with address: ${address}`;
-      const signature = await signMessageAsync({ message });
-
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, signature, message }),
-      });
-
-      if (res.ok) {
-        setSessionStatus("authenticated");
-        console.log("Successfully signed in");
-      }
-    } catch (err) {
-      console.error("Failed to sign in:", err);
     }
-  }, [address, isConnected, sessionStatus, verifiedAddress, signMessageAsync]);
 
-  useEffect(() => {
-    handleLogin();
-  }, [handleLogin]);
+    let isMounted = true;
+
+    const login = async () => {
+      try {
+        const message = `Login to GlobalPhone with address: ${address}`;
+        const signature = await signMessageAsync({ message });
+
+        if (!isMounted) return;
+
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address, signature, message }),
+        });
+
+        if (res.ok && isMounted) {
+          setSessionStatus("authenticated");
+          console.log("Successfully signed in");
+        }
+      } catch (err) {
+        console.error("Failed to sign in:", err);
+        // User rejected or error occurred. We stay 'unauthenticated'.
+      }
+    };
+
+    login();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sessionStatus, verifiedAddress, isConnected, address, signMessageAsync]);
 
   return <ConnectButton />;
 }
