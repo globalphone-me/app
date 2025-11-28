@@ -12,6 +12,7 @@ export interface CallSession {
   status: "PENDING" | "VERIFIED" | "COMPLETED" | "FAILED" | "VOICEMAIL";
   twilioCallSid?: string;
   duration?: number;
+  chainId?: number;
 }
 
 export interface Callee {
@@ -96,6 +97,7 @@ class RedisDB {
     callerAddress: string,
     calleePhoneId: string,
     price: string,
+    chainId?: number,
   ) {
     const session: CallSession = {
       id: crypto.randomUUID(),
@@ -104,6 +106,7 @@ class RedisDB {
       calleePhoneId,
       price,
       status: "PENDING",
+      chainId,
     };
     await redis.set(`session:${paymentId}`, JSON.stringify(session));
     return session;

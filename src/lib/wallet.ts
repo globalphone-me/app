@@ -1,6 +1,6 @@
 import { createWalletClient, http, publicActions } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { CHAIN } from "./config";
+import { CHAIN, WORLDCHAIN } from "./config";
 
 // Ensure the private key exists
 if (!process.env.PLATFORM_PRIVATE_KEY) {
@@ -14,5 +14,11 @@ const account = privateKeyToAccount(
 export const walletClient = createWalletClient({
   account,
   chain: CHAIN,
+  transport: http(),
+}).extend(publicActions);
+
+export const worldChainWalletClient = createWalletClient({
+  account,
+  chain: WORLDCHAIN,
   transport: http(),
 }).extend(publicActions);

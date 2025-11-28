@@ -12,7 +12,8 @@ export const WORLDCHAIN = worldchain;
 
 // Payment recipient address (whitelisted in World Developer Portal)
 export const PAYMENT_RECIPIENT_ADDRESS =
-  "0xbf906ef7c6020d0ed813d578524ed8c09d3311df";
+  "0xbEef6020C17Ea181A117E9504923358619594aA6";
 
 // USDC token address on Worldchain
-export const USDC_TOKEN_ADDRESS = "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88";
+// export const USDC_TOKEN_ADDRESS = "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88";
+export const USDC_TOKEN_ADDRESS = "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1";

@@ -4,6 +4,7 @@ import { SignJWT } from "jose";
 import { paymentReferences } from "@/lib/payment-store";
 import { db } from "@/lib/db";
 import { signCallToken } from "@/lib/auth";
+import { WORLDCHAIN } from "@/lib/config";
 
 interface ConfirmPaymentRequest {
   payload: MiniAppPaymentSuccessPayload;
@@ -146,6 +147,7 @@ export async function POST(req: NextRequest) {
         payload.from,
         recipient.phoneId,
         recipient.price,
+        WORLDCHAIN.id, // World App payments are on World Chain
       );
 
       const token = signCallToken(recipient.phoneId, paymentId);

@@ -18,6 +18,7 @@ import {
   Permission,
   RequestPermissionPayload,
 } from "@worldcoin/minikit-js";
+import { PAYMENT_RECIPIENT_ADDRESS } from "@/lib/config";
 
 interface CallTarget {
   address: string;
@@ -223,7 +224,7 @@ export function CallListCard() {
         // STEP 3: Create payment payload
         const payPayload: PayCommandInput = {
           reference: id,
-          to: targetAddress,
+          to: PAYMENT_RECIPIENT_ADDRESS,
           tokens: [
             {
               symbol: Tokens.USDC,
