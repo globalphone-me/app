@@ -8,6 +8,7 @@ import { MiniKit, PayCommandInput, Tokens, tokenToDecimals, VerifyCommandInput, 
 import { Device, Call } from "@twilio/voice-sdk";
 import { useWalletClient, useAccount } from 'wagmi';
 import { wrapFetchWithPayment } from 'x402-fetch';
+import { PAYMENT_RECIPIENT_ADDRESS } from '@/lib/config';
 
 export function CallCard() {
   // Wagmi hooks for x402 payment
@@ -247,7 +248,7 @@ export function CallCard() {
       // STEP 3: Create payment payload
       const payPayload: PayCommandInput = {
         reference: id,
-        to: recipientAddress,
+        to: PAYMENT_RECIPIENT_ADDRESS, // Send to escrow
         tokens: [
           {
             symbol: Tokens.USDC,

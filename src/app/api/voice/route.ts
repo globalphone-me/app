@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   // 3. Connect
   const dial = twiml.dial({
     callerId: process.env.TWILIO_PHONE_NUMBER,
-    answerOnBridge: false,
+    answerOnBridge: true,
 
     action: `${process.env.NEXT_PUBLIC_APP_URL}/api/voice/status`,
     method: "POST",

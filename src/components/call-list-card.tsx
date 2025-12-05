@@ -18,6 +18,7 @@ import {
   Permission,
   RequestPermissionPayload,
 } from "@worldcoin/minikit-js";
+import { PAYMENT_RECIPIENT_ADDRESS } from "@/lib/config";
 
 interface CallTarget {
   address: string;
@@ -27,7 +28,7 @@ interface CallTarget {
 }
 
 export function CallListCard() {
-  const { isConnected: wagmiConnected } = useAccount();
+  const { isConnected: wagmiConnected, address: userAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
 
   // Detect environment - prioritize MiniKit if available
@@ -223,7 +224,7 @@ export function CallListCard() {
         // STEP 3: Create payment payload
         const payPayload: PayCommandInput = {
           reference: id,
-          to: targetAddress,
+          to: PAYMENT_RECIPIENT_ADDRESS,
           tokens: [
             {
               symbol: Tokens.USDC,
@@ -275,7 +276,7 @@ export function CallListCard() {
         const response = await secureFetch("/api/purchase-connection", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ targetAddress }),
+          body: JSON.stringify({ targetAddress, callerAddress: userAddress }),
         });
 
         if (!response.ok) {

@@ -5,9 +5,14 @@ const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 
 export interface CallSession {
   id: string;
-  paymentId: string;
-  status: "PENDING" | "VERIFIED" | "COMPLETED" | "FAILED";
+  paymentId: string; // Our internal Session/Payment ref
+  callerAddress: string; // Who paid (for refunds)
+  calleePhoneId: string; // Who was called (for payouts)
+  price: string;
+  status: "PENDING" | "VERIFIED" | "COMPLETED" | "FAILED" | "VOICEMAIL";
   twilioCallSid?: string;
+  duration?: number;
+  chainId?: number;
 }
 
 export interface Callee {
@@ -87,11 +92,21 @@ class RedisDB {
   // --- NEW SESSION METHODS ---
 
   // 1. Start a session (When payment is made)
-  async createCallSession(paymentId: string) {
+  async createCallSession(
+    paymentId: string,
+    callerAddress: string,
+    calleePhoneId: string,
+    price: string,
+    chainId?: number,
+  ) {
     const session: CallSession = {
       id: crypto.randomUUID(),
       paymentId,
+      callerAddress,
+      calleePhoneId,
+      price,
       status: "PENDING",
+      chainId,
     };
     await redis.set(`session:${paymentId}`, JSON.stringify(session));
     return session;
@@ -120,6 +135,31 @@ class RedisDB {
     await redis.set(`session:${session.paymentId}`, JSON.stringify(session));
   }
 
+  // New method to finalize status/duration for settlement
+  async finalizeCallSession(
+    callSid: string,
+    status: CallSession["status"],
+    duration: number,
+  ) {
+    const data = await redis.get(`session:sid:${callSid}`);
+    if (!data) return null;
+
+    const session = JSON.parse(data);
+    // Only update status if it wasn't already verified (don't downgrade VERIFIED to COMPLETED/FAILED if we don't want to)
+    // Actually, for settlement, we want the final status.
+    // If it was VERIFIED, it stays VERIFIED (Success).
+    // If it was PENDING, it becomes FAILED or VOICEMAIL.
+    if (session.status === "PENDING") {
+      session.status = status;
+    }
+    session.duration = duration;
+
+    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
+    await redis.set(`session:${session.paymentId}`, JSON.stringify(session));
+
+    return session;
+  }
+
   // 2. Link Twilio CallSid (When call starts)
   async updateSessionWithCallSid(paymentId: string, callSid: string) {
     const data = await redis.get(`session:payment:${paymentId}`);
@@ -140,7 +180,7 @@ class RedisDB {
   }
 
   // 3. Finalize (When call ends)
-  async finalizeCallSession(
+  async finalizeCallSessionOld(
     callSid: string,
     status: CallSession["status"],
     duration: number,
