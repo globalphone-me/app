@@ -4,7 +4,7 @@ import { SignJWT } from "jose";
 import { paymentReferences } from "@/lib/payment-store";
 import { db } from "@/lib/db";
 import { signCallToken } from "@/lib/auth";
-import { WORLDCHAIN } from "@/lib/config";
+import { WORLDCHAIN, PAYMENT_RECIPIENT_ADDRESS } from "@/lib/config";
 
 interface ConfirmPaymentRequest {
   payload: MiniAppPaymentSuccessPayload;
@@ -135,6 +135,19 @@ export async function POST(req: NextRequest) {
           {
             success: false,
             error: `Insufficient payment. Expected ${expectedAmount} USDC, received ${paidAmount} USDC`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Verify the payment went to our escrow wallet
+      if (
+        transaction.to.toLowerCase() !== PAYMENT_RECIPIENT_ADDRESS.toLowerCase()
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Payment destination mismatch",
           },
           { status: 400 },
         );
