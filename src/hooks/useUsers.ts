@@ -3,8 +3,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 export interface User {
   address: string;
   displayName: string;
-  price: number;
+  price: string;
   onlyHumans: boolean;
+}
+
+export interface Availability {
+  enabled: boolean;
+  timezone: string;
+  weekdays: {
+    start: string;
+    end: string;
+    enabled: boolean;
+  };
+  weekends: {
+    start: string;
+    end: string;
+    enabled: boolean;
+  };
 }
 
 export interface UpdateUserData {
@@ -14,6 +29,7 @@ export interface UpdateUserData {
   price: string;
   onlyHumans: boolean;
   rules: Array<{ id: string; type: string; value: string; price: string }>;
+  availability?: Availability;
 }
 
 // Query hook for fetching all users

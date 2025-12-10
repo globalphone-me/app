@@ -69,6 +69,16 @@ export function YourPriceCard() {
   const isConnected = wagmiConnected || (miniKitInstalled && !!miniKitAddress);
   const address = miniKitAddress || wagmiAddress;
 
+  // Availability State
+  const [availabilityEnabled, setAvailabilityEnabled] = useState(false);
+  const [timezone, setTimezone] = useState("UTC");
+  const [weekdaysStart, setWeekdaysStart] = useState("09:00");
+  const [weekdaysEnd, setWeekdaysEnd] = useState("17:00");
+  const [weekdaysEnabled, setWeekdaysEnabled] = useState(true);
+  const [weekendsStart, setWeekendsStart] = useState("10:00");
+  const [weekendsEnd, setWeekendsEnd] = useState("20:00");
+  const [weekendsEnabled, setWeekendsEnabled] = useState(true);
+
   // Check User Hook
   useEffect(() => {
     async function checkUser() {
@@ -84,6 +94,19 @@ export function YourPriceCard() {
             setPrice(data.user.price);
             setOnlyHumans(data.user.onlyHumans || false);
             setPricingRules(data.user.rules || []);
+
+            // Load Availability
+            if (data.user.availability) {
+              setAvailabilityEnabled(data.user.availability.enabled);
+              setTimezone(data.user.availability.timezone);
+              setWeekdaysStart(data.user.availability.weekdays.start);
+              setWeekdaysEnd(data.user.availability.weekdays.end);
+              setWeekdaysEnabled(data.user.availability.weekdays.enabled);
+              setWeekendsStart(data.user.availability.weekends.start);
+              setWeekendsEnd(data.user.availability.weekends.end);
+              setWeekendsEnabled(data.user.availability.weekends.enabled);
+            }
+
             setHasSetup(true);
           }
         }
@@ -121,9 +144,10 @@ export function YourPriceCard() {
     id: string,
     field: keyof PricingRule,
     value: string,
+    val: string,
   ) =>
     setPricingRules(
-      pricingRules.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+      pricingRules.map((r) => (r.id === id ? { ...r, [field]: val } : r)),
     );
   const getRuleTypeLabel = (type: RuleType) =>
     type === "poap"
@@ -146,6 +170,20 @@ export function YourPriceCard() {
         price,
         onlyHumans,
         rules: pricingRules,
+        availability: {
+          enabled: availabilityEnabled,
+          timezone,
+          weekdays: {
+            start: weekdaysStart,
+            end: weekdaysEnd,
+            enabled: weekdaysEnabled,
+          },
+          weekends: {
+            start: weekendsStart,
+            end: weekendsEnd,
+            enabled: weekendsEnabled,
+          },
+        },
       });
 
       setHasSetup(true);
@@ -246,8 +284,96 @@ export function YourPriceCard() {
               </div>
             </div>
 
+            {/* Availability Section */}
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Availability Schedule</label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="availability-enabled"
+                    checked={availabilityEnabled}
+                    onCheckedChange={(checked) => setAvailabilityEnabled(checked as boolean)}
+                  />
+                  <label htmlFor="availability-enabled" className="text-sm font-medium">
+                    Enable
+                  </label>
+                </div>
+              </div>
+
+              {availabilityEnabled && (
+                <div className="space-y-4 p-3 bg-slate-50 rounded-lg">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">Timezone</label>
+                    <Input
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      placeholder="e.g. Europe/Paris"
+                      className="bg-white"
+                    />
+                    <p className="text-xs text-muted-foreground">Use standard IANA timezones (e.g. America/New_York)</p>
+                  </div>
+
+                  {/* Weekdays */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase text-muted-foreground">Mon - Fri</label>
+                      <Checkbox
+                        checked={weekdaysEnabled}
+                        onCheckedChange={(c) => setWeekdaysEnabled(c as boolean)}
+                      />
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="time"
+                        value={weekdaysStart}
+                        onChange={(e) => setWeekdaysStart(e.target.value)}
+                        className="bg-white"
+                        disabled={!weekdaysEnabled}
+                      />
+                      <span>-</span>
+                      <Input
+                        type="time"
+                        value={weekdaysEnd}
+                        onChange={(e) => setWeekdaysEnd(e.target.value)}
+                        className="bg-white"
+                        disabled={!weekdaysEnabled}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Weekends */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase text-muted-foreground">Sat - Sun</label>
+                      <Checkbox
+                        checked={weekendsEnabled}
+                        onCheckedChange={(c) => setWeekendsEnabled(c as boolean)}
+                      />
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="time"
+                        value={weekendsStart}
+                        onChange={(e) => setWeekendsStart(e.target.value)}
+                        className="bg-white"
+                        disabled={!weekendsEnabled}
+                      />
+                      <span>-</span>
+                      <Input
+                        type="time"
+                        value={weekendsEnd}
+                        onChange={(e) => setWeekendsEnd(e.target.value)}
+                        className="bg-white"
+                        disabled={!weekendsEnabled}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Rules Section (Collapsed for brevity, same as before) */}
-            <div className="space-y-3">
+            <div className="space-y-3 border-t pt-4">
               <label className="text-sm font-medium">
                 Custom Pricing Rules (Beta)
               </label>

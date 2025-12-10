@@ -16,6 +16,21 @@ export interface CallSession {
   chainId?: number;
 }
 
+export interface Availability {
+  enabled: boolean;
+  timezone: string; // e.g., 'America/New_York'
+  weekdays: {
+    start: string; // "09:00"
+    end: string;   // "17:00"
+    enabled: boolean;
+  };
+  weekends: {
+    start: string;
+    end: string;
+    enabled: boolean;
+  };
+}
+
 export interface Callee {
   id: string;
   name: string;
@@ -25,6 +40,7 @@ export interface Callee {
   price: string;
   onlyHumans?: boolean;
   rules?: any[];
+  availability?: Availability;
 }
 
 class PostgresDB {
@@ -45,6 +61,7 @@ class PostgresDB {
     price: string,
     onlyHumans: boolean,
     rules: any[],
+    availability?: Availability,
   ): Promise<Callee> {
     const phoneId = this.generatePhoneId(realPhoneNumber);
     const lowerAddr = address.toLowerCase();
@@ -57,6 +74,7 @@ class PostgresDB {
       price,
       onlyHumans,
       rules: JSON.stringify(rules),
+      availability: availability ? JSON.stringify(availability) : null,
     })
       .onConflictDoUpdate({
         target: users.address,
@@ -67,6 +85,7 @@ class PostgresDB {
           price,
           onlyHumans,
           rules: JSON.stringify(rules),
+          availability: availability ? JSON.stringify(availability) : null,
           updatedAt: new Date(),
         },
       })
@@ -81,6 +100,7 @@ class PostgresDB {
       price: user.price || "0",
       onlyHumans: user.onlyHumans || false,
       rules: user.rules ? JSON.parse(user.rules) : [],
+      availability: user.availability ? JSON.parse(user.availability) : undefined,
     };
   }
 

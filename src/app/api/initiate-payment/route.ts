@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { paymentReferences, verifications, cleanupOldReferences } from '@/lib/payment-store';
 import { db } from '@/lib/db';
+import { isUserAvailable } from '@/lib/availability';
 
 interface InitiatePaymentRequest {
   recipientAddress: string;
@@ -27,6 +28,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Recipient not found' },
         { status: 404 }
+      );
+    }
+
+    // Check Availability
+    if (!isUserAvailable(recipient.availability)) {
+      return NextResponse.json(
+        { error: 'User is currently unavailable. Please check their schedule.' },
+        { status: 403 }
       );
     }
 
