@@ -20,7 +20,12 @@ interface PricingRule {
   price: string;
 }
 
-export function YourPriceCard() {
+interface YourPriceCardProps {
+  forceEditMode?: boolean;
+  onClose?: () => void;
+}
+
+export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardProps = {}) {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const { data: ensName } = useEnsName({
     address: wagmiAddress,
@@ -33,7 +38,11 @@ export function YourPriceCard() {
   // State
   const [isLoading, setIsLoading] = useState(false);
   const [hasSetup, setHasSetup] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(forceEditMode);
+
+  useEffect(() => {
+    if (forceEditMode) setIsEditing(true);
+  }, [forceEditMode]);
 
   // Form Fields
   const [name, setName] = useState(""); // <--- NEW

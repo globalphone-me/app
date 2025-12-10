@@ -10,6 +10,10 @@ import { CallCard } from "@/components/call-card";
 import { isUserAvailable } from "@/lib/availability";
 import Image from "next/image";
 import { WalletConnectButton } from "@/components/wallet-connect-button";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Pencil } from "lucide-react";
+import { YourPriceCard } from "@/components/your-price-card";
 
 interface UserProfile {
     name: string;
@@ -28,7 +32,7 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    const { isConnected } = useAccount();
+    const { isConnected, address: currentAddress } = useAccount();
 
     useEffect(() => {
         async function fetchUser() {
@@ -111,6 +115,23 @@ export default function ProfilePage() {
                                 </div>
                                 <CardTitle>{user.name || "Anonymous User"}</CardTitle>
                                 <p className="text-sm font-mono text-muted-foreground">{formattedAddress}</p>
+                                {/* Owner Edit Button */}
+                                {isConnected && user.address.toLowerCase() === (currentAddress || "").toLowerCase() && (
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" size="sm" className="mt-2 w-full">
+                                                <Pencil className="h-3 w-3 mr-2" />
+                                                Edit Profile
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                                            <YourPriceCard
+                                                forceEditMode={true}
+                                                onClose={() => window.location.reload()} // Simple reload to refresh data
+                                            />
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {user.onlyHumans && (
