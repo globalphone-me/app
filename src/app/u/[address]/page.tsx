@@ -168,11 +168,11 @@ export default function ProfilePage() {
                                     <span>{isAvailable ? "Available Now" : "Currently Unavailable"}</span>
                                 </div>
                             </CardContent>
-                        </Card>
-                    </div>
+                        </Card >
+                    </div >
 
                     {/* Call Action Side */}
-                    <div className="md:col-span-2">
+                    < div className="md:col-span-2" >
                         <div className="h-full">
                             <CallCard
                                 prefilledAddress={user.address}
@@ -181,9 +181,9 @@ export default function ProfilePage() {
                                 callButtonText={!isAvailable ? "Not available to call" : undefined}
                             />
                         </div>
-                    </div>
-                </div>
-            </main>
-        </div>
+                    </div >
+                </div >
+            </main >
+        </div >
     );
 }
