@@ -1,3 +1,4 @@
+import { Availability } from '@/lib/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface User {
@@ -5,21 +6,6 @@ export interface User {
   displayName: string;
   price: string;
   onlyHumans: boolean;
-}
-
-export interface Availability {
-  enabled: boolean;
-  timezone: string;
-  weekdays: {
-    start: string;
-    end: string;
-    enabled: boolean;
-  };
-  weekends: {
-    start: string;
-    end: string;
-    enabled: boolean;
-  };
 }
 
 export interface UpdateUserData {
