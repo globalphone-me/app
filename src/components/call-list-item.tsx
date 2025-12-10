@@ -15,6 +15,8 @@ interface CallListItemProps {
   disabled?: boolean;
 }
 
+import Link from 'next/link';
+
 export function CallListItem({ address, displayName, price, onCall, onlyHumans, disabled }: CallListItemProps) {
   const { data: ensName } = useEnsName({
     address: address as `0x${string}`,
@@ -29,9 +31,9 @@ export function CallListItem({ address, displayName, price, onCall, onlyHumans, 
 
   return (
     <div className="flex items-center justify-between py-3">
-      <div className="flex-1">
+      <Link href={`/u/${address}`} className="flex-1 hover:opacity-70 transition-opacity">
         <div className="flex items-center gap-2">
-          <p className="font-medium">{finalDisplayName}</p>
+          <p className="font-medium underline decoration-dotted">{finalDisplayName}</p>
           {onlyHumans && (
             <Image
               src="/worldcoin.png"
@@ -42,7 +44,7 @@ export function CallListItem({ address, displayName, price, onCall, onlyHumans, 
             />
           )}
         </div>
-      </div>
+      </Link>
       <div className="flex items-center gap-3">
         <span className={`font-semibold ${disabled ? 'text-gray-400' : ''}`}>{price} $</span>
         <Button

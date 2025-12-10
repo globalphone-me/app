@@ -34,6 +34,9 @@ export async function GET(request: NextRequest) {
       phoneNumber: isOwner ? user.realPhoneNumber : undefined,
       price: user.price,
       name: user.name,
+      onlyHumans: user.onlyHumans,
+      rules: user.rules,
+      availability: user.availability,
     },
   });
 }
