@@ -1,5 +1,6 @@
 "use client";
 
+import { monitor } from "@/lib/monitor";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { useState, useEffect, useCallback } from "react";
@@ -46,6 +47,9 @@ function StandardWalletButton() {
   // 1. Check session status when address changes
   useEffect(() => {
     if (!address) return;
+
+    monitor.setUser(address);
+    monitor.log("User connected wallet", { address });
 
     let isMounted = true;
 
