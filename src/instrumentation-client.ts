@@ -26,4 +26,16 @@ Sentry.init({
   replaysSessionSampleRate: 0.0,
   // 1.0 = Record 100% of sessions that crash
   replaysOnErrorSampleRate: 1.0,
+
+  // Reduce noise: Filter out console logs that clutter breadcrumbs
+  beforeBreadcrumb(breadcrumb, hint) {
+    if (breadcrumb.category === 'console') {
+      // Example: Filter out generic "log" messages or specific noisy libraries
+      // if (breadcrumb.level === 'info') return null;
+
+      // If you want to keep logs but remove the massive ones:
+      if (breadcrumb.message && breadcrumb.message.includes('[HMR]')) return null;
+    }
+    return breadcrumb;
+  },
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { monitor } from "@/lib/monitor";
+import { isWorldApp } from "@/lib/world-app";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { useState, useEffect, useCallback } from "react";
@@ -18,7 +19,7 @@ export function WalletConnectButton() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({
       mounted: true,
-      isWorldApp: MiniKit.isInstalled(),
+      isWorldApp: isWorldApp(),
     });
   }, []);
 
@@ -190,6 +191,10 @@ function MiniKitWalletButton() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ payload: finalPayload, nonce }),
         });
+
+        // Identify user in Sentry
+        monitor.setUser(finalPayload.address);
+        monitor.log("User connected via MiniKit", { address: finalPayload.address });
 
         // Dispatch custom event to notify other components
         window.dispatchEvent(

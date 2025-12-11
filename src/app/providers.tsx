@@ -25,7 +25,11 @@ const queryClient = new QueryClient();
 // MiniKit Provider for World App mode
 function MiniKitProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
-    MiniKit.install();
+    try {
+      MiniKit.install();
+    } catch {
+      // Silently ignore - expected when not running in World App
+    }
   }, []);
 
   return <>{children}</>;

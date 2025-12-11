@@ -19,6 +19,7 @@ import {
   RequestPermissionPayload,
 } from "@worldcoin/minikit-js";
 import { PAYMENT_RECIPIENT_ADDRESS } from "@/lib/config";
+import { isWorldApp } from "@/lib/world-app";
 
 interface CallTarget {
   address: string;
@@ -32,7 +33,7 @@ export function CallListCard() {
   const { data: walletClient } = useWalletClient();
 
   // Detect environment - prioritize MiniKit if available
-  const isMiniKitEnv = MiniKit.isInstalled();
+  const isMiniKitEnv = isWorldApp();
   const isWalletEnv = !isMiniKitEnv && wagmiConnected && !!walletClient;
   const isConnected = isMiniKitEnv || isWalletEnv;
 
