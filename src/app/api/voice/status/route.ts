@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     // 2. Trigger Settlement
     if (session) {
       // Fire and forget (don't block the webhook response)
-      settleCall(session).catch((e) => console.error("Settlement error:", e));
+      await settleCall(session).catch((e) => console.error("Settlement error:", e));
     } else {
       console.error("Session not found for settlement");
     }
