@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAccount, useEnsName } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Pencil, Plus, X, Loader2 } from "lucide-react";
@@ -45,7 +46,8 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
   }, [forceEditMode]);
 
   // Form Fields
-  const [name, setName] = useState(""); // <--- NEW
+  const [name, setName] = useState("");
+  const [bio, setBio] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [price, setPrice] = useState("0.1");
   const [onlyHumans, setOnlyHumans] = useState(false);
@@ -98,7 +100,8 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
         if (res.ok) {
           const data = await res.json();
           if (data.found) {
-            setName(data.user.name || ""); // Load Name
+            setName(data.user.name || "");
+            setBio(data.user.bio || "");
             setPhoneNumber(data.user.phoneNumber);
             setPrice(data.user.price);
             setOnlyHumans(data.user.onlyHumans || false);
@@ -174,6 +177,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
     try {
       await updateUser.mutateAsync({
         name,
+        bio,
         address,
         phoneNumber,
         price,
@@ -242,7 +246,6 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
-            {/* NEW: Name Field */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Display Name</label>
               <Input
@@ -252,6 +255,18 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
                 onChange={(e) => setName(e.target.value)}
                 className="w-full"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Bio / Headline</label>
+              <Textarea
+                placeholder="Short bio about yourself (e.g. Web3 Lawyer, Available for calls)"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="w-full resize-none"
+                maxLength={160}
+              />
+              <p className="text-xs text-muted-foreground text-right">{bio.length}/160</p>
             </div>
 
             <div className="space-y-2">

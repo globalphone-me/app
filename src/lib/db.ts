@@ -41,6 +41,7 @@ export interface Callee {
   onlyHumans?: boolean;
   rules?: any[];
   availability?: Availability;
+  bio?: string;
 }
 
 class PostgresDB {
@@ -62,6 +63,7 @@ class PostgresDB {
     onlyHumans: boolean,
     rules: any[],
     availability?: Availability,
+    bio?: string,
   ): Promise<Callee> {
     const phoneId = this.generatePhoneId(realPhoneNumber);
     const lowerAddr = address.toLowerCase();
@@ -75,6 +77,7 @@ class PostgresDB {
       onlyHumans,
       rules: JSON.stringify(rules),
       availability: availability ? JSON.stringify(availability) : null,
+      bio,
     })
       .onConflictDoUpdate({
         target: users.address,
@@ -86,6 +89,7 @@ class PostgresDB {
           onlyHumans,
           rules: JSON.stringify(rules),
           availability: availability ? JSON.stringify(availability) : null,
+          bio,
           updatedAt: new Date(),
         },
       })
@@ -101,6 +105,7 @@ class PostgresDB {
       onlyHumans: user.onlyHumans || false,
       rules: user.rules ? JSON.parse(user.rules) : [],
       availability: user.availability ? JSON.parse(user.availability) : undefined,
+      bio: user.bio || undefined,
     };
   }
 

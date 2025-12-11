@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
       onlyHumans: user.onlyHumans,
       rules: user.rules,
       availability: user.availability,
+      bio: user.bio,
     },
   });
 }

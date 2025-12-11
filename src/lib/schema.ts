@@ -28,6 +28,7 @@ export const users = pgTable('users', {
     onlyHumans: boolean('only_humans').default(false),
     rules: text('rules'), // JSON stored as text
     availability: text('availability'), // JSON stored as text
+    bio: text('bio'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at'),
 });

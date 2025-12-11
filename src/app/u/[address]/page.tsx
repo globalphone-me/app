@@ -12,11 +12,12 @@ import Image from "next/image";
 import { WalletConnectButton } from "@/components/wallet-connect-button";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Pencil } from "lucide-react";
+import { Pencil, Share2, Check } from "lucide-react";
 import { YourPriceCard } from "@/components/your-price-card";
 
 interface UserProfile {
     name: string;
+    bio?: string;
     address: string;
     phoneNumber: string; // We might want to mask this or not send it at all for public profiles? Usually safe if it's just the ID.
     price: string;
@@ -31,6 +32,7 @@ export default function ProfilePage() {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [copied, setCopied] = useState(false);
 
     const { isConnected, address: currentAddress } = useAccount();
 
@@ -114,24 +116,44 @@ export default function ProfilePage() {
                                     {user.name ? user.name[0].toUpperCase() : "?"}
                                 </div>
                                 <CardTitle>{user.name || "Anonymous User"}</CardTitle>
-                                <p className="text-sm font-mono text-muted-foreground">{formattedAddress}</p>
-                                {/* Owner Edit Button */}
-                                {isConnected && user.address.toLowerCase() === (currentAddress || "").toLowerCase() && (
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" size="sm" className="mt-2 w-full">
-                                                <Pencil className="h-3 w-3 mr-2" />
-                                                Edit Profile
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                                            <YourPriceCard
-                                                forceEditMode={true}
-                                                onClose={() => window.location.reload()} // Simple reload to refresh data
-                                            />
-                                        </DialogContent>
-                                    </Dialog>
+                                {user.bio && (
+                                    <p className="text-sm text-center mt-2 px-4">{user.bio}</p>
                                 )}
+                                <p className="text-sm font-mono text-muted-foreground mt-1">{formattedAddress}</p>
+
+                                <div className="flex gap-2 w-full mt-4">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(window.location.href);
+                                            setCopied(true);
+                                            setTimeout(() => setCopied(false), 2000);
+                                        }}
+                                    >
+                                        {copied ? <Check className="h-3 w-3 mr-2" /> : <Share2 className="h-3 w-3 mr-2" />}
+                                        {copied ? "Copied" : "Share"}
+                                    </Button>
+
+                                    {/* Owner Edit Button */}
+                                    {isConnected && user.address.toLowerCase() === (currentAddress || "").toLowerCase() && (
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="sm" className="flex-1">
+                                                    <Pencil className="h-3 w-3 mr-2" />
+                                                    Edit
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                                                <YourPriceCard
+                                                    forceEditMode={true}
+                                                    onClose={() => window.location.reload()} // Simple reload to refresh data
+                                                />
+                                            </DialogContent>
+                                        </Dialog>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {user.onlyHumans && (

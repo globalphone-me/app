@@ -24,6 +24,7 @@ export interface Availability {
 
 export interface UpdateUserData {
   name: string;
+  bio?: string;
   address: string;
   phoneNumber: string;
   price: string;
