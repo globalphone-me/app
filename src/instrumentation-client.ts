@@ -3,6 +3,11 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
+  // Ignore expected/noisy errors
+  ignoreErrors: [
+    /websocket close event code: 1001/,
+  ],
+
   integrations: [
     Sentry.replayIntegration({
       maskAllText: false,

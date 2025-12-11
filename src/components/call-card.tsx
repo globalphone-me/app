@@ -31,12 +31,15 @@ export function CallCard() {
 
   // Initialize Twilio Device on Mount
   useEffect(() => {
+    let deviceInstance: Device | null = null;
+
     async function initTwilio() {
       try {
         const resp = await fetch("/api/token");
         const data = await resp.json();
 
         const newDevice = new Device(data.token);
+        deviceInstance = newDevice;
 
         newDevice.on("ready", () => setDeviceStatus("Ready"));
         newDevice.on("error", (err) => {
@@ -55,7 +58,11 @@ export function CallCard() {
     initTwilio();
 
     return () => {
-      // Cleanup will be handled when device changes
+      // Properly cleanup Twilio Device on unmount to prevent WebSocket close errors
+      if (deviceInstance) {
+        deviceInstance.unregister();
+        deviceInstance.destroy();
+      }
     };
   }, []);
 
