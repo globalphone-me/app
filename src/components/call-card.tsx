@@ -9,6 +9,8 @@ import { Device, Call } from "@twilio/voice-sdk";
 import { useWalletClient, useAccount } from 'wagmi';
 import { wrapFetchWithPayment } from 'x402-fetch';
 import { PAYMENT_RECIPIENT_ADDRESS } from '@/lib/config';
+import { isWorldApp } from '@/lib/world-app';
+import { monitor } from '@/lib/monitor';
 
 export function CallCard() {
   // Wagmi hooks for x402 payment
@@ -29,16 +31,19 @@ export function CallCard() {
 
   // Initialize Twilio Device on Mount
   useEffect(() => {
+    let deviceInstance: Device | null = null;
+
     async function initTwilio() {
       try {
         const resp = await fetch("/api/token");
         const data = await resp.json();
 
         const newDevice = new Device(data.token);
+        deviceInstance = newDevice;
 
         newDevice.on("ready", () => setDeviceStatus("Ready"));
         newDevice.on("error", (err) => {
-          console.error("Twilio Error:", err);
+          monitor.error(err, { context: "Twilio Device Error" });
           setDeviceStatus("Error");
         });
 
@@ -53,12 +58,16 @@ export function CallCard() {
     initTwilio();
 
     return () => {
-      // Cleanup will be handled when device changes
+      // Properly cleanup Twilio Device on unmount to prevent WebSocket close errors
+      if (deviceInstance) {
+        deviceInstance.unregister();
+        deviceInstance.destroy();
+      }
     };
   }, []);
 
   // Detect environment - prioritize MiniKit if available
-  const isMiniKitEnv = MiniKit.isInstalled();
+  const isMiniKitEnv = isWorldApp();
   // Only use wallet if MiniKit is NOT available
   const isWalletEnv = !isMiniKitEnv && wagmiConnected && !!walletClient;
 
@@ -76,6 +85,8 @@ export function CallCard() {
     setIsProcessing(true);
     setError('');
     setCurrentStep('paying');
+
+    monitor.log("Starting x402 payment flow", { recipient: recipientAddress });
 
     try {
       // Wrap fetch with x402 payment handling
@@ -100,6 +111,8 @@ export function CallCard() {
         throw new Error('Invalid response from payment server');
       }
 
+      monitor.log("x402 Payment successful", { phoneId: data.phoneId });
+
       // STEP 2: Connect Twilio call with payment credentials
       setCurrentStep('calling');
 
@@ -118,11 +131,13 @@ export function CallCard() {
 
       // Handle Call Events
       newCall.on('accept', () => {
+        monitor.log("Call accepted");
         setCurrentStep('idle');
         setError('');
       });
 
       newCall.on('disconnect', () => {
+        monitor.log("Call disconnected");
         setActiveCall(null);
         setCurrentStep('idle');
       });
@@ -130,7 +145,7 @@ export function CallCard() {
       setActiveCall(newCall);
       setIsProcessing(false);
     } catch (err) {
-      console.error('x402 Payment error:', err);
+      monitor.error(err, { context: "x402 Flow Error" });
       setError(err instanceof Error ? err.message : 'An error occurred');
       setCurrentStep('idle');
       setIsProcessing(false);
@@ -150,6 +165,8 @@ export function CallCard() {
 
     setIsProcessing(true);
     setError('');
+
+    monitor.log("Starting MiniKit verification flow", { recipient: recipientAddress, amount });
 
     try {
       // STEP 0: Request microphone permission before anything else
@@ -222,6 +239,7 @@ export function CallCard() {
       }
 
       const nullifierHash = verifyResponseJson.nullifierHash;
+      monitor.log("Human verification successful", { nullifierHash });
 
       // STEP 2: Initiate payment (now that user is verified)
       setCurrentStep('paying');
@@ -244,6 +262,7 @@ export function CallCard() {
       }
 
       const { id } = await initiateRes.json();
+      monitor.log("Payment initiated", { paymentId: id });
 
       // STEP 3: Create payment payload
       const payPayload: PayCommandInput = {
@@ -300,11 +319,13 @@ export function CallCard() {
 
       // Handle Call Events
       newCall.on("accept", () => {
+        monitor.log("Call accepted (MiniKit)");
         setCurrentStep('idle');
         setError('');
       });
 
       newCall.on("disconnect", () => {
+        monitor.log("Call disconnected (MiniKit)");
         setActiveCall(null);
         setCurrentStep('idle');
       });
@@ -312,7 +333,7 @@ export function CallCard() {
       setActiveCall(newCall);
       setIsProcessing(false);
     } catch (err) {
-      console.error('Verify & Pay error:', err);
+      monitor.error(err, { context: "MiniKit Flow Error" });
       setError(err instanceof Error ? err.message : 'An error occurred');
       setCurrentStep('idle');
     } finally {

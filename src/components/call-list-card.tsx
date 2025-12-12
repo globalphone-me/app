@@ -19,6 +19,7 @@ import {
   RequestPermissionPayload,
 } from "@worldcoin/minikit-js";
 import { PAYMENT_RECIPIENT_ADDRESS } from "@/lib/config";
+import { isWorldApp } from "@/lib/world-app";
 
 interface CallTarget {
   address: string;
@@ -32,7 +33,7 @@ export function CallListCard() {
   const { data: walletClient } = useWalletClient();
 
   // Detect environment - prioritize MiniKit if available
-  const isMiniKitEnv = MiniKit.isInstalled();
+  const isMiniKitEnv = isWorldApp();
   const isWalletEnv = !isMiniKitEnv && wagmiConnected && !!walletClient;
   const isConnected = isMiniKitEnv || isWalletEnv;
 
@@ -47,6 +48,8 @@ export function CallListCard() {
 
   // 1. Initialize Twilio Device on Mount
   useEffect(() => {
+    let deviceInstance: Device | null = null;
+
     async function initTwilio() {
       try {
         console.log("brooo?");
@@ -62,6 +65,7 @@ export function CallListCard() {
         const data = await resp.json();
 
         const newDevice = new Device(data.token);
+        deviceInstance = newDevice;
 
         newDevice.on("ready", () => setDeviceStatus("Ready"));
         newDevice.on("error", (err) => {
@@ -80,7 +84,11 @@ export function CallListCard() {
     initTwilio();
 
     return () => {
-      // Cleanup will be handled when device changes
+      // Properly cleanup Twilio Device on unmount to prevent WebSocket close errors
+      if (deviceInstance) {
+        deviceInstance.unregister();
+        deviceInstance.destroy();
+      }
     };
   }, []);
 

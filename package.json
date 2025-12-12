@@ -16,6 +16,7 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@rainbow-me/rainbowkit": "^2.2.9",
+    "@sentry/nextjs": "^10.30.0",
     "@tanstack/react-query": "^5.90.10",
     "@twilio/voice-sdk": "^2.16.0",
     "@worldcoin/minikit-js": "^1.9.8",

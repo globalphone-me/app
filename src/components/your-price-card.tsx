@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Pencil, Plus, X, Loader2 } from "lucide-react";
 import { mainnet } from "wagmi/chains";
-import { MiniKit } from "@worldcoin/minikit-js";
+import { isWorldApp } from "@/lib/world-app";
 
 type RuleType = "poap" | "token" | "ens" | "humans";
 
@@ -46,7 +46,7 @@ export function YourPriceCard() {
   const [miniKitAddress, setMiniKitAddress] = useState<string | null>(null);
 
   useEffect(() => {
-    const isInstalled = MiniKit.isInstalled();
+    const isInstalled = isWorldApp();
     setMiniKitInstalled(isInstalled);
     if (isInstalled) {
       setMiniKitAddress((window as any).MiniKit?.walletAddress || null);

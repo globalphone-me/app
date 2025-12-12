@@ -3,6 +3,7 @@ import { RouteConfig, withX402 } from "@yssf_io/x402-next";
 import { db } from "@/lib/db";
 import { signCallToken } from "@/lib/auth";
 import { facilitator } from "@coinbase/x402";
+import { monitor } from "@/lib/monitor";
 
 const PAY_TO_ADDRESS = process.env.NEXT_PUBLIC_WALLET_ADDRESS as `0x${string}`;
 
@@ -60,7 +61,7 @@ const handler = async (request: NextRequest): Promise<NextResponse> => {
       token: token,
     });
   } catch (error) {
-    console.error(error);
+    monitor.error(error, { context: "Purchase connection failed" });
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 };
