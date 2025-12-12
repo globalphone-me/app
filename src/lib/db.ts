@@ -127,6 +127,8 @@ class PostgresDB {
       price: user.price || "0",
       onlyHumans: user.onlyHumans || false,
       rules: user.rules ? JSON.parse(user.rules) : [],
+      availability: user.availability ? JSON.parse(user.availability) : undefined,
+      bio: user.bio || undefined,
     };
   }
 
@@ -148,6 +150,8 @@ class PostgresDB {
       price: user.price || "0",
       onlyHumans: user.onlyHumans || false,
       rules: user.rules ? JSON.parse(user.rules) : [],
+      availability: user.availability ? JSON.parse(user.availability) : undefined,
+      bio: user.bio || undefined,
     };
   }
 
@@ -168,6 +172,8 @@ class PostgresDB {
         price: user.price || "0",
         onlyHumans: user.onlyHumans || false,
         rules: user.rules ? JSON.parse(user.rules) : [],
+        availability: user.availability ? JSON.parse(user.availability) : undefined,
+        bio: user.bio || undefined,
       }));
   }
 
