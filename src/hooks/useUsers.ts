@@ -11,9 +11,9 @@ export interface UpdateUserData {
   name: string;
   address: string;
   phoneNumber: string;
-  price: number;
+  price: string;
   onlyHumans: boolean;
-  rules: Array<{ country: string; price: number }>;
+  rules: Array<{ id: string; type: string; value: string; price: string }>;
 }
 
 // Query hook for fetching all users
