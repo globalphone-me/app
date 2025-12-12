@@ -41,6 +41,8 @@ export async function settleCall(session: CallSession) {
           "⚠️ Refund amount is 0 or negative (Connection Fee consumed entire price). No refund sent.",
           { session }
         );
+        // Still mark payment as refunded (even if $0 refund)
+        await db.updatePaymentStatus(session.paymentId, "REFUNDED");
         return;
       }
 
@@ -48,7 +50,8 @@ export async function settleCall(session: CallSession) {
         `💸 REFUNDING ${refundAmount} USDC to Caller (${callerWallet})`,
         { session, amount: refundAmount }
       );
-      await sendUSDC(callerWallet, refundAmount, chainId);
+      const txHash = await sendUSDC(callerWallet, refundAmount, chainId);
+      await db.updatePaymentStatus(session.paymentId, "REFUNDED", txHash);
     }
 
     // SCENARIO B: SUCCESS (Payout)
@@ -60,11 +63,17 @@ export async function settleCall(session: CallSession) {
         `🤑 PAYING ${payoutAmount} USDC to Callee (${callee.address})`,
         { session, amount: payoutAmount, platformFee }
       );
-      await sendUSDC(callee.address, payoutAmount, chainId);
+      const txHash = await sendUSDC(callee.address, payoutAmount, chainId);
+      await db.updatePaymentStatus(session.paymentId, "FORWARDED", txHash);
     }
   } catch (error) {
     monitor.error("❌ SETTLEMENT FAILED:", { error, session });
-    // In production, you would log this to a "FailedPayouts" DB table for manual review
+    // Mark payment as STUCK for admin review
+    try {
+      await db.updatePaymentStatus(session.paymentId, "STUCK");
+    } catch {
+      // If this also fails, we have a serious problem - already logged above
+    }
   }
 }
 

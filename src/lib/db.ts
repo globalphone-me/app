@@ -1,13 +1,14 @@
-import Redis from "ioredis";
 import crypto from "crypto";
+import { eq } from "drizzle-orm";
+import { db as drizzleDb } from "./drizzle";
+import { users, callSessions, payments } from "./schema";
 
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-
+// Types that match the old interface for backwards compatibility
 export interface CallSession {
   id: string;
-  paymentId: string; // Our internal Session/Payment ref
-  callerAddress: string; // Who paid (for refunds)
-  calleePhoneId: string; // Who was called (for payouts)
+  paymentId: string;
+  callerAddress: string;
+  calleePhoneId: string;
   price: string;
   status: "PENDING" | "VERIFIED" | "COMPLETED" | "FAILED" | "VOICEMAIL";
   twilioCallSid?: string;
@@ -26,7 +27,7 @@ export interface Callee {
   rules?: any[];
 }
 
-class RedisDB {
+class PostgresDB {
   private generatePhoneId(realNumber: string): string {
     return crypto
       .createHash("sha256")
@@ -35,6 +36,8 @@ class RedisDB {
       .substring(0, 12);
   }
 
+  // --- USER METHODS ---
+
   async addUser(
     name: string,
     realPhoneNumber: string,
@@ -42,164 +45,298 @@ class RedisDB {
     price: string,
     onlyHumans: boolean,
     rules: any[],
-  ) {
+  ): Promise<Callee> {
     const phoneId = this.generatePhoneId(realPhoneNumber);
     const lowerAddr = address.toLowerCase();
 
-    const user: Callee = {
-      id: crypto.randomUUID(),
+    const [user] = await drizzleDb.insert(users).values({
       name,
       realPhoneNumber,
       phoneId,
       address: lowerAddr,
       price,
       onlyHumans,
-      rules,
+      rules: JSON.stringify(rules),
+    })
+      .onConflictDoUpdate({
+        target: users.address,
+        set: {
+          name,
+          realPhoneNumber,
+          phoneId,
+          price,
+          onlyHumans,
+          rules: JSON.stringify(rules),
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+
+    return {
+      id: user.id,
+      name: user.name || "",
+      realPhoneNumber: user.realPhoneNumber || "",
+      phoneId: user.phoneId || "",
+      address: user.address,
+      price: user.price || "0",
+      onlyHumans: user.onlyHumans || false,
+      rules: user.rules ? JSON.parse(user.rules) : [],
     };
-
-    const data = JSON.stringify(user);
-    await redis.set(`user:addr:${lowerAddr}`, data);
-    await redis.set(`user:pid:${phoneId}`, data);
-    await redis.sadd("directory:users", lowerAddr);
-
-    return user;
   }
 
   async getByAddress(address: string): Promise<Callee | null> {
-    const data = await redis.get(`user:addr:${address.toLowerCase()}`);
-    return data ? JSON.parse(data) : null;
+    const [user] = await drizzleDb
+      .select()
+      .from(users)
+      .where(eq(users.address, address.toLowerCase()))
+      .limit(1);
+
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      name: user.name || "",
+      realPhoneNumber: user.realPhoneNumber || "",
+      phoneId: user.phoneId || "",
+      address: user.address,
+      price: user.price || "0",
+      onlyHumans: user.onlyHumans || false,
+      rules: user.rules ? JSON.parse(user.rules) : [],
+    };
   }
 
   async getByPhoneId(phoneId: string): Promise<Callee | null> {
-    const data = await redis.get(`user:pid:${phoneId}`);
-    return data ? JSON.parse(data) : null;
+    const [user] = await drizzleDb
+      .select()
+      .from(users)
+      .where(eq(users.phoneId, phoneId))
+      .limit(1);
+
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      name: user.name || "",
+      realPhoneNumber: user.realPhoneNumber || "",
+      phoneId: user.phoneId || "",
+      address: user.address,
+      price: user.price || "0",
+      onlyHumans: user.onlyHumans || false,
+      rules: user.rules ? JSON.parse(user.rules) : [],
+    };
   }
 
   async getAllUsers(): Promise<Callee[]> {
-    const addresses = await redis.smembers("directory:users");
-    if (addresses.length === 0) return [];
-    const pipeline = redis.pipeline();
-    addresses.forEach((addr) => pipeline.get(`user:addr:${addr}`));
-    const results = await pipeline.exec();
-    const users: Callee[] = [];
-    results?.forEach(([err, result]) => {
-      if (!err && result && typeof result === "string")
-        users.push(JSON.parse(result));
-    });
-    return users;
+    const allUsers = await drizzleDb
+      .select()
+      .from(users)
+      .where(eq(users.realPhoneNumber, users.realPhoneNumber)); // Only callees (those with phone numbers)
+
+    return allUsers
+      .filter(u => u.realPhoneNumber) // Only return users with phone numbers (callees)
+      .map(user => ({
+        id: user.id,
+        name: user.name || "",
+        realPhoneNumber: user.realPhoneNumber || "",
+        phoneId: user.phoneId || "",
+        address: user.address,
+        price: user.price || "0",
+        onlyHumans: user.onlyHumans || false,
+        rules: user.rules ? JSON.parse(user.rules) : [],
+      }));
   }
 
-  // --- NEW SESSION METHODS ---
+  // --- CALL SESSION METHODS ---
 
-  // 1. Start a session (When payment is made)
   async createCallSession(
     paymentId: string,
     callerAddress: string,
     calleePhoneId: string,
     price: string,
     chainId?: number,
-  ) {
-    const session: CallSession = {
-      id: crypto.randomUUID(),
-      paymentId,
-      callerAddress,
+  ): Promise<CallSession> {
+    // First, ensure caller has a user record (get or create)
+    let caller = await this.getByAddress(callerAddress);
+    if (!caller) {
+      // Auto-create minimal user record for caller
+      const [newUser] = await drizzleDb.insert(users).values({
+        address: callerAddress.toLowerCase(),
+      }).returning();
+      caller = { id: newUser.id, name: "", realPhoneNumber: "", phoneId: "", address: newUser.address, price: "0" };
+    }
+
+    // Get callee by phoneId
+    const callee = await this.getByPhoneId(calleePhoneId);
+
+    // Create payment record with the provided paymentId as its ID
+    const [payment] = await drizzleDb.insert(payments).values({
+      id: paymentId, // Use the provided paymentId
+      amount: price,
+      chainId: chainId || 8453, // Default to Base
+      status: "HELD",
+    }).returning();
+
+    // Create call session
+    const [session] = await drizzleDb.insert(callSessions).values({
+      callerId: caller.id,
+      calleeId: callee?.id,
+      paymentId: payment.id,
+      status: "PENDING",
+    }).returning();
+
+    return {
+      id: session.id,
+      paymentId: payment.id,
+      callerAddress: callerAddress.toLowerCase(),
       calleePhoneId,
       price,
       status: "PENDING",
       chainId,
     };
-    await redis.set(`session:${paymentId}`, JSON.stringify(session));
-    return session;
   }
 
-  // 2. Link Twilio CallSid (Called when call starts)
-  async linkCallSid(paymentId: string, callSid: string) {
-    const data = await redis.get(`session:${paymentId}`);
-    if (!data) return;
-    const session = JSON.parse(data);
-    session.twilioCallSid = callSid;
-
-    await redis.set(`session:${paymentId}`, JSON.stringify(session));
-    // Index by SID for fast lookup in webhooks
-    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
+  async linkCallSid(paymentId: string, callSid: string): Promise<void> {
+    await drizzleDb
+      .update(callSessions)
+      .set({ twilioCallSid: callSid, updatedAt: new Date() })
+      .where(eq(callSessions.paymentId, paymentId));
   }
 
-  // 3. Mark as Verified (Called when human presses 1)
-  async markSessionVerified(callSid: string) {
-    const data = await redis.get(`session:sid:${callSid}`);
-    if (!data) return;
-    const session = JSON.parse(data);
-    session.status = "VERIFIED";
-
-    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
-    await redis.set(`session:${session.paymentId}`, JSON.stringify(session));
+  async markSessionVerified(callSid: string): Promise<void> {
+    await drizzleDb
+      .update(callSessions)
+      .set({ status: "VERIFIED", updatedAt: new Date() })
+      .where(eq(callSessions.twilioCallSid, callSid));
   }
 
-  // New method to finalize status/duration for settlement
   async finalizeCallSession(
     callSid: string,
     status: CallSession["status"],
     duration: number,
-  ) {
-    const data = await redis.get(`session:sid:${callSid}`);
-    if (!data) return null;
+  ): Promise<CallSession | null> {
+    // Get current session
+    const [session] = await drizzleDb
+      .select()
+      .from(callSessions)
+      .where(eq(callSessions.twilioCallSid, callSid))
+      .limit(1);
 
-    const session = JSON.parse(data);
-    // Only update status if it wasn't already verified (don't downgrade VERIFIED to COMPLETED/FAILED if we don't want to)
-    // Actually, for settlement, we want the final status.
-    // If it was VERIFIED, it stays VERIFIED (Success).
-    // If it was PENDING, it becomes FAILED or VOICEMAIL.
-    if (session.status === "PENDING") {
-      session.status = status;
-    }
-    session.duration = duration;
+    if (!session) return null;
 
-    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
-    await redis.set(`session:${session.paymentId}`, JSON.stringify(session));
+    // Only update status if it wasn't already verified
+    const newStatus = session.status === "PENDING" ? status : session.status;
 
-    return session;
+    await drizzleDb
+      .update(callSessions)
+      .set({ status: newStatus, duration, updatedAt: new Date() })
+      .where(eq(callSessions.twilioCallSid, callSid));
+
+    // Get full session data with related payment
+    const [payment] = await drizzleDb
+      .select()
+      .from(payments)
+      .where(eq(payments.id, session.paymentId!))
+      .limit(1);
+
+    // Get caller address
+    const [caller] = await drizzleDb
+      .select()
+      .from(users)
+      .where(eq(users.id, session.callerId!))
+      .limit(1);
+
+    // Get callee phoneId
+    const [callee] = await drizzleDb
+      .select()
+      .from(users)
+      .where(eq(users.id, session.calleeId!))
+      .limit(1);
+
+    return {
+      id: session.id,
+      paymentId: payment?.id || "",
+      callerAddress: caller?.address || "",
+      calleePhoneId: callee?.phoneId || "",
+      price: payment?.amount || "0",
+      status: newStatus as CallSession["status"],
+      twilioCallSid: callSid,
+      duration,
+      chainId: payment?.chainId,
+    };
   }
 
-  // 2. Link Twilio CallSid (When call starts)
-  async updateSessionWithCallSid(paymentId: string, callSid: string) {
-    const data = await redis.get(`session:payment:${paymentId}`);
-    if (!data) return;
-
-    const session = JSON.parse(data);
-    session.twilioCallSid = callSid;
-
-    await redis.set(`session:payment:${paymentId}`, JSON.stringify(session));
-    // Also index by CallSid for the webhook
-    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
-  }
-
-  // 4. Get Session by SID
   async getSessionBySid(callSid: string): Promise<CallSession | null> {
-    const data = await redis.get(`session:sid:${callSid}`);
-    return data ? JSON.parse(data) : null;
+    const [session] = await drizzleDb
+      .select()
+      .from(callSessions)
+      .where(eq(callSessions.twilioCallSid, callSid))
+      .limit(1);
+
+    if (!session) return null;
+
+    // Get related data
+    const [payment] = session.paymentId
+      ? await drizzleDb.select().from(payments).where(eq(payments.id, session.paymentId)).limit(1)
+      : [null];
+
+    const [caller] = session.callerId
+      ? await drizzleDb.select().from(users).where(eq(users.id, session.callerId)).limit(1)
+      : [null];
+
+    const [callee] = session.calleeId
+      ? await drizzleDb.select().from(users).where(eq(users.id, session.calleeId)).limit(1)
+      : [null];
+
+    return {
+      id: session.id,
+      paymentId: payment?.id || "",
+      callerAddress: caller?.address || "",
+      calleePhoneId: callee?.phoneId || "",
+      price: payment?.amount || "0",
+      status: session.status as CallSession["status"],
+      twilioCallSid: session.twilioCallSid || undefined,
+      duration: session.duration || undefined,
+      chainId: payment?.chainId || undefined,
+    };
   }
 
-  // 3. Finalize (When call ends)
+  // Legacy method - keeping for compatibility
+  async updateSessionWithCallSid(paymentId: string, callSid: string): Promise<void> {
+    await this.linkCallSid(paymentId, callSid);
+  }
+
+  // Legacy method - keeping for compatibility
   async finalizeCallSessionOld(
     callSid: string,
     status: CallSession["status"],
     duration: number,
-  ) {
-    const data = await redis.get(`session:sid:${callSid}`);
-    if (!data) return null;
+  ): Promise<CallSession | null> {
+    return this.finalizeCallSession(callSid, status, duration);
+  }
 
-    const session = JSON.parse(data);
-    session.status = status;
-    session.duration = duration;
+  // --- PAYMENT METHODS ---
 
-    await redis.set(`session:sid:${callSid}`, JSON.stringify(session));
-    await redis.set(
-      `session:payment:${session.paymentId}`,
-      JSON.stringify(session),
-    );
+  async updatePaymentStatus(
+    paymentId: string,
+    status: "HELD" | "FORWARDED" | "REFUNDED" | "STUCK",
+    txHash?: string,
+  ): Promise<void> {
+    const updateData: Record<string, unknown> = {
+      status,
+      settledAt: new Date(),
+    };
 
-    return session;
+    if (status === "FORWARDED" && txHash) {
+      updateData.forwardTxHash = txHash;
+    } else if (status === "REFUNDED" && txHash) {
+      updateData.refundTxHash = txHash;
+    }
+
+    await drizzleDb
+      .update(payments)
+      .set(updateData)
+      .where(eq(payments.id, paymentId));
   }
 }
 
-export const db = new RedisDB();
+export const db = new PostgresDB();
