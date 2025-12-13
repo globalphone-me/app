@@ -11,7 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { WalletConnectButton } from "@/components/wallet-connect-button";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Pencil, Share2, Check } from "lucide-react";
 import { YourPriceCard } from "@/components/your-price-card";
 
@@ -146,6 +146,8 @@ export default function ProfilePage() {
                                                 </Button>
                                             </DialogTrigger>
                                             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                                                <DialogTitle className="sr-only">Edit Profile</DialogTitle>
+                                                <DialogDescription className="sr-only">Edit your profile settings</DialogDescription>
                                                 <YourPriceCard
                                                     forceEditMode={true}
                                                     onClose={() => window.location.reload()} // Simple reload to refresh data
