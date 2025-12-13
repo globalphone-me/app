@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { RouteConfig, withX402 } from "@yssf_io/x402-next";
 import { db } from "@/lib/db";
 import { signCallToken } from "@/lib/auth";
+import { isUserAvailable } from "@/lib/availability";
 import { facilitator } from "@coinbase/x402";
 import { monitor } from "@/lib/monitor";
 
@@ -31,6 +32,14 @@ const handler = async (request: NextRequest): Promise<NextResponse> => {
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check Availability
+    if (!isUserAvailable(user.availability)) {
+      return NextResponse.json(
+        { error: "User is currently unavailable. Please check their schedule." },
+        { status: 403 },
+      );
     }
 
     // Block x402 calls to users who only accept verified humans

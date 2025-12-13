@@ -1,19 +1,22 @@
+import { Availability } from '@/lib/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface User {
   address: string;
   displayName: string;
-  price: number;
+  price: string;
   onlyHumans: boolean;
 }
 
 export interface UpdateUserData {
   name: string;
+  bio?: string;
   address: string;
   phoneNumber: string;
   price: string;
   onlyHumans: boolean;
   rules: Array<{ id: string; type: string; value: string; price: string }>;
+  availability?: Availability;
 }
 
 // Query hook for fetching all users

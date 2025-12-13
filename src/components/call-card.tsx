@@ -12,13 +12,20 @@ import { PAYMENT_RECIPIENT_ADDRESS } from '@/lib/config';
 import { isWorldApp } from '@/lib/world-app';
 import { monitor } from '@/lib/monitor';
 
-export function CallCard() {
+interface CallCardProps {
+  prefilledAddress?: string;
+  prefilledPrice?: string;
+  disabled?: boolean;
+  callButtonText?: string;
+}
+
+export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButtonText }: CallCardProps) {
   // Wagmi hooks for x402 payment
-  const { isConnected: wagmiConnected } = useAccount();
+  const { isConnected: wagmiConnected, address: userAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
 
-  const [recipientAddress, setRecipientAddress] = useState('');
-  const [amount, setAmount] = useState('0.1'); // Default 0.1 USDC for testing
+  const [recipientAddress, setRecipientAddress] = useState(prefilledAddress || '');
+  const [amount, setAmount] = useState(prefilledPrice || '0.1'); // Default 0.1 USDC for testing
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState<'idle' | 'verifying' | 'paying' | 'calling'>('idle');
@@ -91,13 +98,13 @@ export function CallCard() {
     try {
       // Wrap fetch with x402 payment handling
       // @ts-expect-error - x402-fetch types might expect a strict Viem client, but Wagmi's is compatible
-      const secureFetch = wrapFetchWithPayment(fetch, walletClient);
+      const secureFetch = wrapFetchWithPayment(fetch, walletClient, BigInt(10000 * 10 ** 6));
 
       // Request connection - this will trigger 402 payment flow
       const response = await secureFetch('/api/purchase-connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetAddress: recipientAddress }),
+        body: JSON.stringify({ targetAddress: recipientAddress, callerAddress: userAddress }),
       });
 
       if (!response.ok) {
@@ -396,31 +403,45 @@ export function CallCard() {
               <label htmlFor="recipient" className="text-sm font-medium">
                 Recipient Wallet Address
               </label>
-              <Input
-                id="recipient"
-                type="text"
-                placeholder="0x..."
-                value={recipientAddress}
-                onChange={(e) => setRecipientAddress(e.target.value)}
-                className="w-full font-mono text-sm"
-              />
+              {prefilledAddress ? (
+                <div className="p-2 border rounded-md bg-muted text-sm font-mono">
+                  {prefilledAddress}
+                </div>
+              ) : (
+                <Input
+                  id="recipient"
+                  type="text"
+                  placeholder="0x..."
+                  value={recipientAddress}
+                  onChange={(e) => setRecipientAddress(e.target.value)}
+                  className="w-full font-mono text-sm"
+                />
+              )}
             </div>
             {isMiniKitEnv && (
               <div className="space-y-2">
                 <label htmlFor="amount" className="text-sm font-medium">
                   Amount (USDC)
                 </label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  placeholder="5"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">Minimum: $0.10 USDC</p>
+                {prefilledPrice ? (
+                  <div className="p-2 border rounded-md bg-muted text-sm">
+                    {prefilledPrice} USDC
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      placeholder="5"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">Minimum: $0.10 USDC</p>
+                  </>
+                )}
               </div>
             )}
             {error && (
@@ -438,11 +459,11 @@ export function CallCard() {
             <Button
               onClick={handleCall}
               className="w-full"
-              disabled={isProcessing || !recipientAddress || (isMiniKitEnv && !amount) || deviceStatus !== "Ready" || !isConnected}
+              disabled={isProcessing || !recipientAddress || (isMiniKitEnv && !amount) || deviceStatus !== "Ready" || !isConnected || disabled}
             >
               {isProcessing
                 ? (currentStep === 'verifying' ? 'Verifying...' : currentStep === 'paying' ? 'Processing Payment...' : 'Connecting...')
-                : isMiniKitEnv ? 'Verify & Pay to Call' : 'Pay to Call'}
+                : callButtonText || (isMiniKitEnv ? 'Verify & Pay to Call' : 'Pay to Call')}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
               {isMiniKitEnv
