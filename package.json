@@ -26,6 +26,7 @@
     "drizzle-orm": "^0.45.1",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
+    "libphonenumber-js": "^1.12.31",
     "lucide-react": "^0.554.0",
     "next": "^15.5.7",
     "postgres": "^3.4.7",

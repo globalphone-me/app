@@ -10,6 +10,7 @@ import { Pencil, Plus, X, Loader2 } from "lucide-react";
 import { mainnet } from "wagmi/chains";
 import { isWorldApp } from "@/lib/world-app";
 import { useUpdateUser } from "@/hooks/useUsers";
+import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
 
 type RuleType = "poap" | "token" | "ens" | "humans";
 
@@ -38,6 +39,7 @@ export function YourPriceCard() {
   // Form Fields
   const [name, setName] = useState(""); // <--- NEW
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [price, setPrice] = useState("0.1");
   const [onlyHumans, setOnlyHumans] = useState(false);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
@@ -138,11 +140,15 @@ export function YourPriceCard() {
   const handleConfirmSetup = async () => {
     if (!name || !phoneNumber || !price || !address) return; // Check Name
 
+    // Normalize phone number to E.164 format for Twilio
+    const parsed = parsePhoneNumberFromString(phoneNumber);
+    const normalizedPhone = parsed?.format("E.164") || phoneNumber;
+
     try {
       await updateUser.mutateAsync({
         name,
         address,
-        phoneNumber,
+        phoneNumber: normalizedPhone,
         price,
         onlyHumans,
         rules: pricingRules,
@@ -159,6 +165,30 @@ export function YourPriceCard() {
   const walletDisplay = ensName || (address ? formatAddress(address) : "");
 
   const maskedPhone = phoneNumber ? maskPhoneNumber(phoneNumber) : "";
+
+  // Phone validation
+  const validatePhoneNumber = (value: string) => {
+    setPhoneNumber(value);
+
+    if (!value) {
+      setPhoneError(null);
+      return;
+    }
+
+    if (!value.startsWith("+")) {
+      setPhoneError("Include country code (e.g., +1 for US)");
+      return;
+    }
+
+    if (!isValidPhoneNumber(value)) {
+      setPhoneError("Invalid phone number");
+      return;
+    }
+
+    setPhoneError(null);
+  };
+
+  const isPhoneValid = phoneNumber && !phoneError;
 
   // -- RENDER --
 
@@ -211,11 +241,14 @@ export function YourPriceCard() {
               <label className="text-sm font-medium">Phone Number</label>
               <Input
                 type="tel"
-                placeholder="Enter your phone number"
+                placeholder="+1 555 123 4567"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full"
+                onChange={(e) => validatePhoneNumber(e.target.value)}
+                className={`w-full ${phoneError ? "border-red-500" : ""}`}
               />
+              {phoneError && (
+                <p className="text-sm text-red-500">{phoneError}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -283,7 +316,7 @@ export function YourPriceCard() {
           <Button
             onClick={handleConfirmSetup}
             className="w-full"
-            disabled={!name || !phoneNumber || !price || updateUser.isPending}
+            disabled={!name || !isPhoneValid || !price || updateUser.isPending}
           >
             {updateUser.isPending ? (
               <>
