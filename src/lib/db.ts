@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql, count, desc } from "drizzle-orm";
 import { db as drizzleDb } from "./drizzle";
 import { users, callSessions, payments } from "./schema";
 
@@ -367,6 +367,111 @@ class PostgresDB {
       .update(payments)
       .set(updateData)
       .where(eq(payments.id, paymentId));
+  }
+
+  // --- ADMIN METHODS ---
+
+  async getAllCallSessionsAdmin(limit = 100) {
+    const sessions = await drizzleDb
+      .select()
+      .from(callSessions)
+      .orderBy(desc(callSessions.createdAt))
+      .limit(limit);
+
+    // Fetch related user and payment data
+    const result = await Promise.all(
+      sessions.map(async (session) => {
+        const [caller] = session.callerId
+          ? await drizzleDb.select().from(users).where(eq(users.id, session.callerId)).limit(1)
+          : [null];
+        const [callee] = session.calleeId
+          ? await drizzleDb.select().from(users).where(eq(users.id, session.calleeId)).limit(1)
+          : [null];
+        const [payment] = session.paymentId
+          ? await drizzleDb.select().from(payments).where(eq(payments.id, session.paymentId)).limit(1)
+          : [null];
+
+        return {
+          id: session.id,
+          status: session.status,
+          twilioCallSid: session.twilioCallSid,
+          duration: session.duration,
+          createdAt: session.createdAt,
+          caller: caller ? { address: caller.address, name: caller.name } : null,
+          callee: callee ? { address: callee.address, name: callee.name, phoneId: callee.phoneId } : null,
+          payment: payment ? { amount: payment.amount, status: payment.status, chainId: payment.chainId } : null,
+        };
+      })
+    );
+
+    return result;
+  }
+
+  async getAllPaymentsAdmin(limit = 100) {
+    const allPayments = await drizzleDb
+      .select()
+      .from(payments)
+      .orderBy(desc(payments.createdAt))
+      .limit(limit);
+
+    return allPayments.map((p) => ({
+      id: p.id,
+      amount: p.amount,
+      chainId: p.chainId,
+      status: p.status,
+      txHash: p.txHash,
+      forwardTxHash: p.forwardTxHash,
+      refundTxHash: p.refundTxHash,
+      createdAt: p.createdAt,
+      settledAt: p.settledAt,
+    }));
+  }
+
+  async getAdminStats() {
+    const [userCount] = await drizzleDb.select({ count: count() }).from(users);
+    const [callCount] = await drizzleDb.select({ count: count() }).from(callSessions);
+    const [paymentCount] = await drizzleDb.select({ count: count() }).from(payments);
+
+    // Payment status breakdown
+    const paymentsByStatus = await drizzleDb
+      .select({
+        status: payments.status,
+        count: count(),
+      })
+      .from(payments)
+      .groupBy(payments.status);
+
+    // Call status breakdown
+    const callsByStatus = await drizzleDb
+      .select({
+        status: callSessions.status,
+        count: count(),
+      })
+      .from(callSessions)
+      .groupBy(callSessions.status);
+
+    // Total revenue (sum of forwarded payments)
+    const [revenue] = await drizzleDb
+      .select({
+        total: sql<string>`COALESCE(SUM(${payments.amount}), 0)`,
+      })
+      .from(payments)
+      .where(eq(payments.status, "FORWARDED"));
+
+    return {
+      totalUsers: userCount?.count || 0,
+      totalCalls: callCount?.count || 0,
+      totalPayments: paymentCount?.count || 0,
+      totalRevenue: revenue?.total || "0",
+      paymentsByStatus: paymentsByStatus.reduce((acc, p) => {
+        acc[p.status || "UNKNOWN"] = p.count;
+        return acc;
+      }, {} as Record<string, number>),
+      callsByStatus: callsByStatus.reduce((acc, c) => {
+        acc[c.status || "UNKNOWN"] = c.count;
+        return acc;
+      }, {} as Record<string, number>),
+    };
   }
 }
 
