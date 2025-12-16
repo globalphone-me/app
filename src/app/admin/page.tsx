@@ -3,13 +3,17 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Users, Phone, CreditCard, AlertTriangle, DollarSign } from "lucide-react";
+import { RefreshCw, Users, ArrowRightLeft, AlertTriangle, DollarSign, TrendingUp } from "lucide-react";
+import Link from "next/link";
 
 interface Stats {
     totalUsers: number;
     totalCalls: number;
     totalPayments: number;
-    totalRevenue: string;
+    gmv: string;
+    revenue: string;
+    forwardedGmv: string;
+    refundedGmv: string;
     paymentsByStatus: Record<string, number>;
     callsByStatus: Record<string, number>;
 }
@@ -37,6 +41,7 @@ export default function AdminDashboard() {
     }, [fetchStats]);
 
     const stuckPayments = stats?.paymentsByStatus?.STUCK || 0;
+    const callPaymentMismatch = stats && stats.totalCalls !== stats.totalPayments;
 
     return (
         <div className="space-y-6">
@@ -47,6 +52,32 @@ export default function AdminDashboard() {
                     Refresh
                 </Button>
             </div>
+
+            {/* Alerts */}
+            {stuckPayments > 0 && (
+                <Card className="border-red-500 bg-red-50 dark:bg-red-950">
+                    <CardContent className="flex items-center gap-3 py-4">
+                        <AlertTriangle className="h-5 w-5 text-red-600" />
+                        <span className="text-red-700 dark:text-red-400 font-medium">
+                            {stuckPayments} payment{stuckPayments > 1 ? "s" : ""} stuck - requires manual review
+                        </span>
+                        <Button variant="destructive" size="sm" className="ml-auto" asChild>
+                            <Link href="/admin/payments">View Payments</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
+
+            {callPaymentMismatch && (
+                <Card className="border-orange-500 bg-orange-50 dark:bg-orange-950">
+                    <CardContent className="flex items-center gap-3 py-4">
+                        <AlertTriangle className="h-5 w-5 text-orange-600" />
+                        <span className="text-orange-700 dark:text-orange-400 font-medium">
+                            Data integrity issue: {stats?.totalCalls} calls ≠ {stats?.totalPayments} payments
+                        </span>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -63,7 +94,7 @@ export default function AdminDashboard() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats?.totalCalls ?? "-"}</div>
@@ -72,39 +103,26 @@ export default function AdminDashboard() {
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium">GMV (USDC)</CardTitle>
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats?.totalPayments ?? "-"}</div>
+                        <div className="text-2xl font-bold">${stats?.gmv ?? "-"}</div>
+                        <p className="text-xs text-muted-foreground mt-1">Total payment volume</p>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Revenue (USDC)</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">${stats?.totalRevenue ?? "-"}</div>
+                        <div className="text-2xl font-bold">${stats?.revenue ?? "-"}</div>
+                        <p className="text-xs text-muted-foreground mt-1">Platform fees earned</p>
                     </CardContent>
                 </Card>
             </div>
-
-            {/* Alerts */}
-            {stuckPayments > 0 && (
-                <Card className="border-red-500 bg-red-50 dark:bg-red-950">
-                    <CardContent className="flex items-center gap-3 py-4">
-                        <AlertTriangle className="h-5 w-5 text-red-600" />
-                        <span className="text-red-700 dark:text-red-400 font-medium">
-                            {stuckPayments} payment{stuckPayments > 1 ? "s" : ""} stuck - requires manual review
-                        </span>
-                        <Button variant="destructive" size="sm" className="ml-auto" asChild>
-                            <a href="/admin/payments">View Payments</a>
-                        </Button>
-                    </CardContent>
-                </Card>
-            )}
 
             {/* Status Breakdowns */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
