@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, Users, Phone, CreditCard, Loader2, ArrowLeft } from "lucide-react";
 
@@ -13,7 +13,6 @@ const navItems = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const router = useRouter();
     const pathname = usePathname();
     const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
@@ -47,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-950">
                 <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
-                <p className="text-muted-foreground">You don't have permission to access the admin dashboard.</p>
+                <p className="text-muted-foreground">You don&apos;t have permission to access the admin dashboard.</p>
                 <Link href="/" className="text-blue-600 hover:underline flex items-center gap-2">
                     <ArrowLeft className="h-4 w-4" /> Back to Home
                 </Link>
@@ -75,8 +74,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     key={item.href}
                                     href={item.href}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${isActive
-                                            ? "bg-zinc-100 dark:bg-zinc-800 font-medium"
-                                            : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-muted-foreground"
+                                        ? "bg-zinc-100 dark:bg-zinc-800 font-medium"
+                                        : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-muted-foreground"
                                         }`}
                                 >
                                     <Icon className="h-4 w-4" />
