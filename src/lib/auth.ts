@@ -52,3 +52,10 @@ export function verifySessionToken(token: string): SessionPayload | null {
     return null;
   }
 }
+
+// 5. Check if address is an admin
+export function isAdmin(address: string): boolean {
+  const adminAddresses = process.env.ADMIN_ADDRESSES || "";
+  const admins = adminAddresses.split(",").map(a => a.trim().toLowerCase());
+  return admins.includes(address.toLowerCase());
+}
