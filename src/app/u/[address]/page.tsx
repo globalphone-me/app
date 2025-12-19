@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { useAccount } from "wagmi";
-import { Loader2, ShieldCheck, Clock, Pencil, Share2, Check } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useAccount, useDisconnect } from "wagmi";
+import { Loader2, ShieldCheck, Clock, Pencil, Share2, Check, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CallCard } from "@/components/call-card";
 import { isUserAvailable } from "@/lib/availability";
@@ -32,6 +32,22 @@ export default function ProfilePage() {
     const [copied, setCopied] = useState(false);
 
     const { isConnected, address: currentAddress } = useAccount();
+    const router = useRouter();
+
+    const { disconnect } = useDisconnect({
+        mutation: {
+            onSuccess: () => {
+                router.push("/");
+            }
+        }
+    });
+
+    const handleLogout = async () => {
+        // Clear session cookie
+        await fetch("/api/auth/logout", { method: "POST" });
+        // Disconnect wallet - redirect happens in onSuccess callback
+        disconnect();
+    };
 
     useEffect(() => {
         async function fetchUser() {
@@ -147,6 +163,19 @@ export default function ProfilePage() {
                                     <Clock className="h-4 w-4" />
                                     <span>{isAvailable ? "Available Now" : "Currently Unavailable"}</span>
                                 </div>
+
+                                {/* Logout Button - Only for profile owner */}
+                                {isConnected && user.address.toLowerCase() === (currentAddress || "").toLowerCase() && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={handleLogout}
+                                    >
+                                        <LogOut className="h-4 w-4 mr-2" />
+                                        Log Out
+                                    </Button>
+                                )}
                             </CardContent>
                         </Card >
                     </div >
