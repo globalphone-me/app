@@ -9,6 +9,7 @@ export async function GET() {
   const list = users.map((u) => ({
     address: u.address,
     displayName: u.name || u.address,
+    bio: u.bio || "",
     price: parseFloat(u.price),
     onlyHumans: u.onlyHumans || false,
   }));

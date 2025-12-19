@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 export interface User {
   address: string;
   displayName: string;
+  bio?: string;
   price: string;
   onlyHumans: boolean;
 }

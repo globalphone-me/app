@@ -1,33 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { UserCard } from "./user-card";
-
-// Mock data - will be replaced with real data later
-const MOCK_USERS = [
-    { address: "0x1234567890abcdef1234567890abcdef12345678", name: "Alex Chen", bio: "Software Engineer", price: 2 },
-    { address: "0x2234567890abcdef1234567890abcdef12345678", name: "Maria Rodriguez", bio: "Digital Artist", price: 2 },
-    { address: "0x3234567890abcdef1234567890abcdef12345678", name: "Kenji Tanaka", bio: "Blockchain Consultant", price: 2 },
-    { address: "0x4234567890abcdef1234567890abcdef12345678", name: "Chloe Dubois", bio: "Content Creator", price: 2 },
-    { address: "0x5234567890abcdef1234567890abcdef12345678", name: "David Lee", bio: "Product Manager", price: 2 },
-    { address: "0x6234567890abcdef1234567890abcdef12345678", name: "Sarah Jones", bio: "UX Designer", price: 2 },
-    { address: "0x7234567890abcdef1234567890abcdef12345678", name: "Ahmed Khan", bio: "Developer", price: 2 },
-    { address: "0x8234567890abcdef1234567890abcdef12345678", name: "Emily White", bio: "Marketing", price: 2 },
-    { address: "0x9234567890abcdef1234567890abcdef12345678", name: "Michael Brown", bio: "Data Scientist", price: 2 },
-    { address: "0xa234567890abcdef1234567890abcdef12345678", name: "Jessica Kim", bio: "Founder", price: 2 },
-    { address: "0xb234567890abcdef1234567890abcdef12345678", name: "Chris Green", bio: "Investor", price: 2 },
-    { address: "0xc234567890abcdef1234567890abcdef12345678", name: "Laura Davis", bio: "Architect", price: 2 },
-];
+import { useUsers } from "@/hooks/useUsers";
 
 export function UserGrid() {
     const [searchQuery, setSearchQuery] = useState("");
+    const { data: users = [], isLoading, error } = useUsers();
 
     // Filter users based on search query
-    const filteredUsers = MOCK_USERS.filter(
+    const filteredUsers = users.filter(
         (user) =>
-            user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.bio.toLowerCase().includes(searchQuery.toLowerCase())
+            user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.address.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -48,23 +34,43 @@ export function UserGrid() {
                 </div>
             </div>
 
+            {/* Loading State */}
+            {isLoading && (
+                <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+                <div className="text-center py-12 text-red-500">
+                    <p>Failed to load users. Please try again.</p>
+                </div>
+            )}
+
             {/* User Grid */}
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredUsers.map((user) => (
-                    <UserCard
-                        key={user.address}
-                        address={user.address}
-                        name={user.name}
-                        bio={user.bio}
-                        price={user.price}
-                    />
-                ))}
-            </section>
+            {!isLoading && !error && (
+                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filteredUsers.map((user) => (
+                        <UserCard
+                            key={user.address}
+                            address={user.address}
+                            name={user.displayName}
+                            bio={user.bio || ""}
+                            price={parseFloat(user.price)}
+                        />
+                    ))}
+                </section>
+            )}
 
             {/* Empty State */}
-            {filteredUsers.length === 0 && (
+            {!isLoading && !error && filteredUsers.length === 0 && (
                 <div className="text-center py-12 text-gray-500">
-                    <p>No users found matching &quot;{searchQuery}&quot;</p>
+                    {searchQuery ? (
+                        <p>No users found matching &quot;{searchQuery}&quot;</p>
+                    ) : (
+                        <p>No users registered yet.</p>
+                    )}
                 </div>
             )}
         </div>
