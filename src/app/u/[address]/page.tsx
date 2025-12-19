@@ -3,16 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAccount } from "wagmi";
-import { Loader2, ShieldCheck, Clock } from "lucide-react";
+import { Loader2, ShieldCheck, Clock, Pencil, Share2, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CallCard } from "@/components/call-card";
 import { isUserAvailable } from "@/lib/availability";
-import Image from "next/image";
-import Link from "next/link";
-import { WalletConnectButton } from "@/components/wallet-connect-button";
+import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Pencil, Share2, Check } from "lucide-react";
 import { YourPriceCard } from "@/components/your-price-card";
 
 interface UserProfile {
@@ -85,26 +82,7 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-black">
-            {/* Header with wallet button */}
-            <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 items-center">
-                            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition">
-                                <Image
-                                    src="/logo_transparent.png"
-                                    alt="GlobalPhone Logo"
-                                    width={40}
-                                    height={40}
-                                    className="object-contain"
-                                />
-                                <span className="text-xl font-bold hidden sm:inline">GlobalPhone</span>
-                            </Link>
-                        </div>
-                        <WalletConnectButton />
-                    </div>
-                </div>
-            </header>
+            <Header />
 
             <main className="container mx-auto px-4 py-12 max-w-4xl">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
