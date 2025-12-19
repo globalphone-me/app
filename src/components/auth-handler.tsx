@@ -126,14 +126,6 @@ export function AuthHandler() {
 
                     <div className="flex gap-3">
                         <Button
-                            variant="outline"
-                            onClick={handleDismiss}
-                            disabled={isSigning}
-                            className="flex-1"
-                        >
-                            Later
-                        </Button>
-                        <Button
                             onClick={handleSignIn}
                             disabled={isSigning}
                             className="flex-1 bg-blue-600 hover:bg-blue-700"
@@ -144,7 +136,7 @@ export function AuthHandler() {
                                     Waiting for signature...
                                 </>
                             ) : (
-                                "Sign In"
+                                "Sign Message"
                             )}
                         </Button>
                     </div>
