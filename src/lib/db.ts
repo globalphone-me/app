@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { eq, sql, count, desc } from "drizzle-orm";
+import { eq, sql, count, desc, asc } from "drizzle-orm";
 import { db as drizzleDb } from "./drizzle";
 import { users, callSessions, payments } from "./schema";
 
@@ -159,7 +159,8 @@ class PostgresDB {
     const allUsers = await drizzleDb
       .select()
       .from(users)
-      .where(eq(users.realPhoneNumber, users.realPhoneNumber)); // Only callees (those with phone numbers)
+      .where(eq(users.realPhoneNumber, users.realPhoneNumber))
+      .orderBy(asc(users.createdAt)); // Oldest first
 
     return allUsers
       .filter(u => u.realPhoneNumber) // Only return users with phone numbers (callees)

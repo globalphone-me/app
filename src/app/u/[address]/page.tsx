@@ -1,18 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { useAccount } from "wagmi";
-import { Loader2, ShieldCheck, Clock } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useAccount, useDisconnect } from "wagmi";
+import { Loader2, ShieldCheck, Clock, Pencil, Share2, Check, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CallCard } from "@/components/call-card";
 import { isUserAvailable } from "@/lib/availability";
-import Image from "next/image";
-import Link from "next/link";
-import { WalletConnectButton } from "@/components/wallet-connect-button";
+import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Pencil, Share2, Check } from "lucide-react";
 import { YourPriceCard } from "@/components/your-price-card";
 
 interface UserProfile {
@@ -35,6 +32,22 @@ export default function ProfilePage() {
     const [copied, setCopied] = useState(false);
 
     const { isConnected, address: currentAddress } = useAccount();
+    const router = useRouter();
+
+    const { disconnect } = useDisconnect({
+        mutation: {
+            onSuccess: () => {
+                router.push("/");
+            }
+        }
+    });
+
+    const handleLogout = async () => {
+        // Clear session cookie
+        await fetch("/api/auth/logout", { method: "POST" });
+        // Disconnect wallet - redirect happens in onSuccess callback
+        disconnect();
+    };
 
     useEffect(() => {
         async function fetchUser() {
@@ -85,26 +98,7 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-black">
-            {/* Header with wallet button */}
-            <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 items-center">
-                            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition">
-                                <Image
-                                    src="/logo_transparent.png"
-                                    alt="GlobalPhone Logo"
-                                    width={40}
-                                    height={40}
-                                    className="object-contain"
-                                />
-                                <span className="text-xl font-bold hidden sm:inline">GlobalPhone</span>
-                            </Link>
-                        </div>
-                        <WalletConnectButton />
-                    </div>
-                </div>
-            </header>
+            <Header />
 
             <main className="container mx-auto px-4 py-12 max-w-4xl">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -169,6 +163,19 @@ export default function ProfilePage() {
                                     <Clock className="h-4 w-4" />
                                     <span>{isAvailable ? "Available Now" : "Currently Unavailable"}</span>
                                 </div>
+
+                                {/* Logout Button - Only for profile owner */}
+                                {isConnected && user.address.toLowerCase() === (currentAddress || "").toLowerCase() && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={handleLogout}
+                                    >
+                                        <LogOut className="h-4 w-4 mr-2" />
+                                        Log Out
+                                    </Button>
+                                )}
                             </CardContent>
                         </Card >
                     </div >
