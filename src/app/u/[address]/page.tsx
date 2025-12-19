@@ -119,7 +119,7 @@ export default function ProfilePage() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="flex-1"
+                                        className="flex-1 cursor-pointer"
                                         onClick={() => {
                                             navigator.clipboard.writeText(window.location.href);
                                             setCopied(true);
@@ -134,7 +134,7 @@ export default function ProfilePage() {
                                     {isConnected && user.address.toLowerCase() === (currentAddress || "").toLowerCase() && (
                                         <Dialog>
                                             <DialogTrigger asChild>
-                                                <Button variant="outline" size="sm" className="flex-1">
+                                                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
                                                     <Pencil className="h-3 w-3 mr-2" />
                                                     Edit
                                                 </Button>
@@ -169,7 +169,7 @@ export default function ProfilePage() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
                                         onClick={handleLogout}
                                     >
                                         <LogOut className="h-4 w-4 mr-2" />
