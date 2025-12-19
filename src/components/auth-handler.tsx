@@ -84,18 +84,13 @@ export function AuthHandler() {
             } else {
                 setError("Failed to verify signature. Please try again.");
             }
-        } catch (err) {
+        } catch (_err) {
             // User rejected the signature or error occurred
             setError("Signature rejected. You can try again when you're ready.");
         } finally {
             setIsSigning(false);
         }
     }, [address, signMessageAsync]);
-
-    const handleDismiss = () => {
-        // User can dismiss but they won't be authenticated
-        setShowModal(false);
-    };
 
     // Don't render anything if authenticated or not connected
     if (!isConnected || sessionStatus === "authenticated" || sessionStatus === "loading") {
