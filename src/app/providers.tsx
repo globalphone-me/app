@@ -6,6 +6,7 @@ import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { WagmiProvider, http } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { CHAIN, MAINNET, WORLDCHAIN } from "@/lib/config";
+import { AuthHandler } from "@/components/auth-handler";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -49,6 +50,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <RainbowKitProvider modalSize="compact">
             {mounted && children}
+            <AuthHandler />
           </RainbowKitProvider>
         </QueryClientProvider>
       </WagmiProvider>

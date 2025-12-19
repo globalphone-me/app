@@ -4,8 +4,8 @@ import { monitor } from "@/lib/monitor";
 import { isWorldApp } from "@/lib/world-app";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { MiniKit } from "@worldcoin/minikit-js";
-import { useState, useEffect, useCallback } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
 
 export function WalletConnectButton() {
   const [state, setState] = useState<{ mounted: boolean; isWorldApp: boolean }>(
@@ -16,7 +16,6 @@ export function WalletConnectButton() {
   );
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({
       mounted: true,
       isWorldApp: isWorldApp(),
@@ -35,101 +34,14 @@ export function WalletConnectButton() {
 }
 
 function StandardWalletButton() {
-  const { address, isConnected } = useAccount();
-  const { signMessageAsync } = useSignMessage();
+  const { address } = useAccount();
 
-  // Status: 'authenticated' (valid cookie), 'unauthenticated' (needs sign)
-  // Note: We don't need an explicit 'loading' state; we infer loading when verifiedAddress !== address
-  const [sessionStatus, setSessionStatus] = useState<
-    "authenticated" | "unauthenticated"
-  >("unauthenticated");
-  const [verifiedAddress, setVerifiedAddress] = useState<string | null>(null);
-
-  // 1. Check session status when address changes
   useEffect(() => {
-    if (!address) return;
-
-    monitor.setUser(address);
-    monitor.log("User connected wallet", { address });
-
-    let isMounted = true;
-
-    // We do NOT set state here synchronously to avoid linter errors.
-    // Instead, we just start the fetch. The 'Login' effect below guards against
-    // stale state by checking (verifiedAddress === address).
-
-    fetch("/api/auth/status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!isMounted) return;
-
-        // Only update if the checked address matches the current wallet address
-        if (
-          data.authenticated &&
-          data.address?.toLowerCase() === address.toLowerCase()
-        ) {
-          setSessionStatus("authenticated");
-        } else {
-          setSessionStatus("unauthenticated");
-        }
-        // Mark this specific address as verified
-        setVerifiedAddress(address);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setSessionStatus("unauthenticated");
-        setVerifiedAddress(address);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [address]);
-
-  // 2. Prompt for signature ONLY if connected, unauthenticated, and the address check is FINISHED
-  useEffect(() => {
-    // Crucial Check: verifiedAddress must match current address.
-    // If they differ, it means we are still fetching/loading for the new address.
-    if (
-      !isConnected ||
-      !address ||
-      verifiedAddress !== address ||
-      sessionStatus !== "unauthenticated"
-    ) {
-      return;
+    if (address) {
+      monitor.setUser(address);
+      monitor.log("User connected wallet", { address });
     }
-
-    let isMounted = true;
-
-    const login = async () => {
-      try {
-        const message = `Login to GlobalPhone with address: ${address}`;
-        const signature = await signMessageAsync({ message });
-
-        if (!isMounted) return;
-
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address, signature, message }),
-        });
-
-        if (res.ok && isMounted) {
-          setSessionStatus("authenticated");
-          console.log("Successfully signed in");
-        }
-      } catch (err) {
-        console.error("Failed to sign in:", err);
-        // User rejected or error occurred. We stay 'unauthenticated'.
-      }
-    };
-
-    login();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [sessionStatus, verifiedAddress, isConnected, address, signMessageAsync]);
+  }, [address]);
 
   return <ConnectButton />;
 }
