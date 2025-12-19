@@ -7,6 +7,7 @@ export interface User {
   bio?: string;
   price: string;
   onlyHumans: boolean;
+  availability?: Availability;
 }
 
 export interface UpdateUserData {

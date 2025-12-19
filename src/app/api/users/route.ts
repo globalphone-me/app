@@ -12,6 +12,7 @@ export async function GET() {
     bio: u.bio || "",
     price: parseFloat(u.price),
     onlyHumans: u.onlyHumans || false,
+    availability: u.availability,
   }));
 
   return NextResponse.json(list);

@@ -58,6 +58,7 @@ export function UserGrid() {
                             name={user.displayName}
                             bio={user.bio || ""}
                             price={parseFloat(user.price)}
+                            availability={user.availability}
                         />
                     ))}
                 </section>
