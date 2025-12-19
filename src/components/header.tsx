@@ -2,10 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useAccount } from "wagmi";
+import { User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { WalletConnectButton } from "@/components/wallet-connect-button";
 
 export function Header() {
+    const { isConnected, address } = useAccount();
+
     return (
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-50">
             {/* Left: Logo and Branding */}
@@ -31,7 +36,16 @@ export function Header() {
 
             {/* Right: User Controls */}
             <div className="flex items-center gap-3">
-                <WalletConnectButton />
+                {isConnected && address ? (
+                    <Link href={`/u/${address}`}>
+                        <Button variant="outline" size="sm" className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            <span className="hidden sm:inline">My Profile</span>
+                        </Button>
+                    </Link>
+                ) : (
+                    <WalletConnectButton />
+                )}
             </div>
         </header>
     );
