@@ -8,6 +8,7 @@ export async function GET() {
   // Transform to match frontend expectations
   const list = users.map((u) => ({
     address: u.address,
+    handle: u.handle,
     displayName: u.name || u.address,
     bio: u.bio || "",
     price: parseFloat(u.price),

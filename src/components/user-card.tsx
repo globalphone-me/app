@@ -8,6 +8,7 @@ import { isUserAvailable } from "@/lib/availability";
 
 interface UserCardProps {
     address: string;
+    handle?: string;
     name: string;
     bio: string;
     avatarUrl?: string;
@@ -15,7 +16,7 @@ interface UserCardProps {
     availability?: Availability;
 }
 
-export function UserCard({ address, name, bio, avatarUrl, price, availability }: UserCardProps) {
+export function UserCard({ address, handle, name, bio, avatarUrl, price, availability }: UserCardProps) {
     // Generate initials for fallback avatar
     const initials = name
         .split(" ")
@@ -28,7 +29,7 @@ export function UserCard({ address, name, bio, avatarUrl, price, availability }:
 
     return (
         <article className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-            <Link href={`/u/${address}`} className="flex items-start gap-4 mb-5 group">
+            <Link href={`/u/${handle || address}`} className="flex items-start gap-4 mb-5 group">
                 {/* Avatar with availability dot */}
                 <div className="relative flex-shrink-0">
                     {avatarUrl ? (
