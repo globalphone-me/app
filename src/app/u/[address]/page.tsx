@@ -154,6 +154,9 @@ export default function ProfilePage() {
                                     </div>
                                 )}
                                 <CardTitle>{user.name || "Anonymous User"}</CardTitle>
+                                {user.handle && (
+                                    <p className="text-sm text-muted-foreground">@{user.handle}</p>
+                                )}
                                 {user.bio && (
                                     <p className="text-sm text-center mt-2 px-4">{user.bio}</p>
                                 )}

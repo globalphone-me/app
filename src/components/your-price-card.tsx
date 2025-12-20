@@ -48,6 +48,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
   // Form Fields
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
+  const [originalHandle, setOriginalHandle] = useState(""); // Track existing handle
   const [handleStatus, setHandleStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
   const [handleError, setHandleError] = useState("");
   const [bio, setBio] = useState("");
@@ -105,6 +106,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
           if (data.found) {
             setName(data.user.name || "");
             setHandle(data.user.handle || "");
+            setOriginalHandle(data.user.handle || ""); // Store original
             if (data.user.handle) setHandleStatus("available"); // Already has handle
             setBio(data.user.bio || "");
             setPhoneNumber(data.user.phoneNumber);
@@ -148,6 +150,13 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
   useEffect(() => {
     if (!handle || handle.length < 4) {
       setHandleStatus("idle");
+      setHandleError("");
+      return;
+    }
+
+    // If handle unchanged from original, it's still valid (user's own handle)
+    if (handle.toLowerCase() === originalHandle.toLowerCase()) {
+      setHandleStatus("available");
       setHandleError("");
       return;
     }
