@@ -234,6 +234,7 @@ export default function ProfilePage() {
                                 prefilledPrice={user.price}
                                 disabled={!isAvailable}
                                 callButtonText={!isAvailable ? "Not available to call" : undefined}
+                                calleeName={user.name}
                             />
                         </div>
                     </div >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,9 +22,10 @@ interface CallCardProps {
   prefilledPrice?: string;
   disabled?: boolean;
   callButtonText?: string;
+  calleeName?: string;
 }
 
-export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButtonText }: CallCardProps) {
+export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButtonText, calleeName }: CallCardProps) {
   // Wagmi hooks for x402 payment
   const { isConnected: wagmiConnected, address: userAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -58,6 +59,14 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
   // Call timer state
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const [callDuration, setCallDuration] = useState(0);
+
+  // Post-call state
+  const [postCallState, setPostCallState] = useState<'none' | 'completed' | 'missed'>('none');
+  const [finalCallDuration, setFinalCallDuration] = useState(0);
+
+  // Track if call was answered (using ref to avoid stale closure in event handlers)
+  const callWasAnsweredRef = useRef(false);
+  const callStartTimeRef = useRef<number | null>(null);
 
   // Call duration timer effect
   useEffect(() => {
@@ -176,13 +185,28 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
       // Handle Call Events
       newCall.on('accept', () => {
         monitor.log("Call accepted");
-        setCallStartTime(Date.now());
+        const startTime = Date.now();
+        callWasAnsweredRef.current = true;
+        callStartTimeRef.current = startTime;
+        setCallStartTime(startTime);
         setCurrentStep('idle');
         setError('');
       });
 
       newCall.on('disconnect', () => {
         monitor.log("Call disconnected");
+        // Determine if call was completed (answered) or missed using refs (not stale state)
+        if (callWasAnsweredRef.current && callStartTimeRef.current) {
+          // Call was answered - show thank you
+          setFinalCallDuration(Math.floor((Date.now() - callStartTimeRef.current) / 1000));
+          setPostCallState('completed');
+        } else {
+          // Call was never answered - show missed
+          setPostCallState('missed');
+        }
+        // Reset refs
+        callWasAnsweredRef.current = false;
+        callStartTimeRef.current = null;
         setActiveCall(null);
         setCallStartTime(null);
         setCurrentStep('idle');
@@ -534,8 +558,68 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
             if (isProcessing || activeCall) e.preventDefault();
           }}
         >
-          {/* In-Call View */}
-          {activeCall ? (
+          {/* Post-Call View - Completed */}
+          {postCallState === 'completed' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-center text-2xl">🎉 Thank You!</DialogTitle>
+                <DialogDescription className="text-center">
+                  Thanks for using GlobalPhone
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-6 text-center">
+                <div className="text-6xl">📞</div>
+                <div>
+                  <p className="text-lg font-medium">Your call lasted</p>
+                  <p className="text-3xl font-mono font-bold text-primary mt-2">
+                    {Math.floor(finalCallDuration / 60)} min {finalCallDuration % 60} sec
+                  </p>
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    setPostCallState('none');
+                    setShowPreCallModal(false);
+                  }}
+                >
+                  Done
+                </Button>
+              </div>
+            </>
+          ) : postCallState === 'missed' ? (
+            /* Post-Call View - Missed */
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-center text-2xl">📵 Call Unavailable</DialogTitle>
+                <DialogDescription className="text-center">
+                  We couldn&apos;t connect your call
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-6 text-center">
+                <div className="text-6xl">😔</div>
+                <div>
+                  <p className="text-lg">
+                    Sorry, <strong>{calleeName || 'the callee'}</strong> is busy and couldn&apos;t pick up.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Try again later!
+                  </p>
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    setPostCallState('none');
+                    setShowPreCallModal(false);
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </>
+          ) : activeCall ? (
+            /* In-Call View */
             <>
               <DialogHeader>
                 <DialogTitle className="text-center">📞 Call in Progress</DialogTitle>
