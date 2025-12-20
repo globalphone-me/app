@@ -399,24 +399,23 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
           </div>
         ) : (
           <>
-            <div className="space-y-2">
-              <label htmlFor="recipient" className="text-sm font-medium">
-                Recipient Wallet Address
-              </label>
-              {prefilledAddress ? (
-                <div className="p-2 border rounded-md bg-muted text-sm font-mono">
-                  {prefilledAddress}
+            {/* How it works explanation */}
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-medium text-sm">How it works</h4>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <span className="text-base">💳</span>
+                  <span>Pay <strong className="text-foreground">${prefilledPrice || amount} USDC</strong> to start the call</span>
                 </div>
-              ) : (
-                <Input
-                  id="recipient"
-                  type="text"
-                  placeholder="0x..."
-                  value={recipientAddress}
-                  onChange={(e) => setRecipientAddress(e.target.value)}
-                  className="w-full font-mono text-sm"
-                />
-              )}
+                <div className="flex items-start gap-2">
+                  <span className="text-base">📞</span>
+                  <span>If they pick up, the call connects and they keep the payment</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-base">💰</span>
+                  <span>If they don&apos;t pick up, you get a <strong className="text-foreground">refund</strong> (minus a $0.10 fee for cellular connection)</span>
+                </div>
+              </div>
             </div>
             {isMiniKitEnv && (
               <div className="space-y-2">

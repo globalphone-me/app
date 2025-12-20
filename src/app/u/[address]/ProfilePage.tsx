@@ -160,7 +160,6 @@ export default function ProfilePage() {
                                 {user.bio && (
                                     <p className="text-sm text-center mt-2 px-4">{user.bio}</p>
                                 )}
-                                <p className="text-sm font-mono text-muted-foreground mt-1">{formattedAddress}</p>
 
                                 <div className="flex gap-2 w-full mt-4">
                                     <Button
