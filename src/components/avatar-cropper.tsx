@@ -30,7 +30,7 @@ function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: numbe
     );
 }
 
-export function AvatarCropper({ open, onClose, onUploadComplete, currentAvatarUrl }: AvatarCropperProps) {
+export function AvatarCropper({ open, onClose, onUploadComplete }: AvatarCropperProps) {
     const [imgSrc, setImgSrc] = useState<string>("");
     const [crop, setCrop] = useState<Crop>();
     const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
@@ -132,7 +132,7 @@ export function AvatarCropper({ open, onClose, onUploadComplete, currentAvatarUr
             } else {
                 setError(data.error || "Failed to upload avatar.");
             }
-        } catch (err) {
+        } catch (_err) {
             setError("Failed to upload avatar. Please try again.");
         } finally {
             setIsUploading(false);
@@ -153,7 +153,7 @@ export function AvatarCropper({ open, onClose, onUploadComplete, currentAvatarUr
                 <DialogHeader>
                     <DialogTitle>Update Profile Picture</DialogTitle>
                     <DialogDescription>
-                        Select your best picture! It'll be cropped to a circle.
+                        Select your best picture! It&apos;ll be cropped to a circle.
                     </DialogDescription>
                 </DialogHeader>
 
