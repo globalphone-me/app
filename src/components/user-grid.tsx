@@ -59,6 +59,7 @@ export function UserGrid() {
                             bio={user.bio || ""}
                             price={parseFloat(user.price)}
                             availability={user.availability}
+                            avatarUrl={user.avatarUrl}
                         />
                     ))}
                 </section>

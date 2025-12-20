@@ -29,6 +29,7 @@ export const users = pgTable('users', {
     rules: text('rules'), // JSON stored as text
     availability: text('availability'), // JSON stored as text
     bio: text('bio'),
+    avatarUrl: text('avatar_url'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at'),
 });

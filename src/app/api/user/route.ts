@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
       rules: user.rules,
       availability: user.availability,
       bio: user.bio,
+      avatarUrl: user.avatarUrl,
     },
   });
 }

@@ -13,6 +13,7 @@ export async function GET() {
     price: parseFloat(u.price),
     onlyHumans: u.onlyHumans || false,
     availability: u.availability,
+    avatarUrl: u.avatarUrl,
   }));
 
   return NextResponse.json(list);

@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   allowedDevOrigins: ["https://9a22060a67ce.ngrok-free.app"],
 
+  images: {
+    remotePatterns: [new URL("https://pub-35d81df293e34baabacadb39c72aa2a4.r2.dev/**")]
+  },
+
   experimental: {
     optimizePackageImports: ["@rainbow-me/rainbowkit", "wagmi", "viem"],
   },
