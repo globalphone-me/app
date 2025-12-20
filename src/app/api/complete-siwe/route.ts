@@ -1,23 +1,40 @@
 import { signSessionToken } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createClient,
-  createPublicClient,
-  getAddress,
-  http,
-  verifyMessage,
-} from "viem";
-import { worldchain } from "viem/chains";
+import { createPublicClient, http } from "viem";
+import { CHAIN } from "@/lib/config";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { payload, nonce } = body;
 
-    // Verify we have the required fields
-    if (!payload || payload.status !== "success") {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    // Support both MiniKit payload format (World App) and standard SIWE format
+    let message: string;
+    let signature: `0x${string}`;
+    let address: `0x${string}`;
+    let nonce: string;
+
+    if (body.payload && body.payload.status === "success") {
+      // MiniKit/World App format
+      message = body.payload.message;
+      signature = body.payload.signature as `0x${string}`;
+      address = body.payload.address as `0x${string}`;
+      nonce = body.nonce;
+    } else if (body.message && body.signature) {
+      // Standard SIWE format (from auth-handler)
+      message = body.message;
+      signature = body.signature as `0x${string}`;
+      nonce = body.nonce;
+
+      // Extract address from the SIWE message
+      // The message format includes "0x..." address on the second line
+      const addressMatch = message.match(/0x[a-fA-F0-9]{40}/);
+      if (!addressMatch) {
+        return NextResponse.json({ error: "Could not extract address from message" }, { status: 400 });
+      }
+      address = addressMatch[0] as `0x${string}`;
+    } else {
+      return NextResponse.json({ error: "Invalid payload format" }, { status: 400 });
     }
 
     // Get the stored nonce from cookie
@@ -31,14 +48,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // we need the client to verify smart account signatures (world app uses Safe)
-    const client = createPublicClient({ chain: worldchain, transport: http() });
+    // Create public client to verify signature (supports ERC-1271 for smart accounts)
+    const client = createPublicClient({ chain: CHAIN, transport: http() });
 
-    // Verify the signature
+    // Verify the SIWE message signature
     const isValid = await client.verifySiweMessage({
-      address: payload.address as `0x${string}`,
-      message: payload.message,
-      signature: payload.signature as `0x${string}`,
+      address,
+      message,
+      signature,
     });
 
     if (!isValid) {
@@ -48,29 +65,28 @@ export async function POST(req: NextRequest) {
     // Clear the used nonce
     cookieStore.delete("siwe-nonce");
 
-    // Create authenticated session
-    // Store user session (you can use your preferred session management here)
-    cookieStore.set("wallet-address", payload.address, {
+    // Store wallet address cookie
+    cookieStore.set("wallet-address", address, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    // Generate JWT
-    const token = signSessionToken(payload.address);
+    // Generate JWT session token
+    const token = signSessionToken(address);
 
-    // Set Secure Cookie
+    // Set session cookie
     cookieStore.set("session_token", token, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     return NextResponse.json({
       success: true,
-      address: payload.address,
+      address,
     });
   } catch (error) {
     console.error("SIWE verification error:", error);

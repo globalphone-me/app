@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount, useChainId, useSignMessage } from "wagmi";
+import { createSiweMessage } from "viem/siwe";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, Shield } from "lucide-react";
@@ -14,6 +15,7 @@ import { monitor } from "@/lib/monitor";
  */
 export function AuthHandler() {
     const { address, isConnected } = useAccount();
+    const chainId = useChainId();
     const { signMessageAsync } = useSignMessage();
 
     const [sessionStatus, setSessionStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
@@ -68,21 +70,38 @@ export function AuthHandler() {
         setError(null);
 
         try {
-            const message = `Login to GlobalPhone with address: ${address}`;
+            // 1. Get nonce from server
+            const nonceRes = await fetch("/api/nonce");
+            const { nonce } = await nonceRes.json();
+
+            // 2. Create proper SIWE message with EIP-4361 format
+            const message = createSiweMessage({
+                address,
+                chainId,
+                domain: window.location.host,
+                nonce,
+                uri: window.location.origin,
+                version: "1",
+                statement: "Sign in to GlobalPhone",
+            });
+
+            // 3. Sign the SIWE message
             const signature = await signMessageAsync({ message });
 
-            const res = await fetch("/api/auth/login", {
+            // 4. Verify with backend
+            const res = await fetch("/api/complete-siwe", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address, signature, message }),
+                body: JSON.stringify({ message, signature, nonce }),
             });
 
             if (res.ok) {
                 setSessionStatus("authenticated");
                 setShowModal(false);
-                monitor.log("User signed in successfully", { address });
+                monitor.log("User signed in successfully via SIWE", { address });
             } else {
-                setError("Failed to verify signature. Please try again.");
+                const data = await res.json();
+                setError(data.error || "Failed to verify signature. Please try again.");
             }
         } catch (_err) {
             // User rejected the signature or error occurred
@@ -90,7 +109,7 @@ export function AuthHandler() {
         } finally {
             setIsSigning(false);
         }
-    }, [address, signMessageAsync]);
+    }, [address, chainId, signMessageAsync]);
 
     // Don't render anything if authenticated or not connected
     if (!isConnected || sessionStatus === "authenticated" || sessionStatus === "loading") {
