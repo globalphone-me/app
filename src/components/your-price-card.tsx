@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Pencil, Plus, X, Loader2 } from "lucide-react";
+import { Pencil, Plus, X, Loader2, Check, AlertCircle } from "lucide-react";
 import { mainnet } from "wagmi/chains";
 import { isWorldApp } from "@/lib/world-app";
 import { useUpdateUser } from "@/hooks/useUsers";
@@ -47,6 +47,9 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
   // Form Fields
   const [name, setName] = useState("");
+  const [handle, setHandle] = useState("");
+  const [handleStatus, setHandleStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const [handleError, setHandleError] = useState("");
   const [bio, setBio] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [price, setPrice] = useState("0.1");
@@ -101,6 +104,8 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
           const data = await res.json();
           if (data.found) {
             setName(data.user.name || "");
+            setHandle(data.user.handle || "");
+            if (data.user.handle) setHandleStatus("available"); // Already has handle
             setBio(data.user.bio || "");
             setPhoneNumber(data.user.phoneNumber);
             setPrice(data.user.price);
@@ -138,6 +143,43 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
     if (phone.length <= 6) return phone;
     return phone.slice(0, 4) + "*".repeat(phone.length - 6) + phone.slice(-2);
   };
+
+  // Handle check with debounce
+  useEffect(() => {
+    if (!handle || handle.length < 4) {
+      setHandleStatus("idle");
+      setHandleError("");
+      return;
+    }
+
+    // Basic validation
+    const handleRegex = /^[a-zA-Z0-9_]{4,15}$/;
+    if (!handleRegex.test(handle)) {
+      setHandleStatus("invalid");
+      setHandleError("Only letters, numbers, and underscores allowed (4-15 chars)");
+      return;
+    }
+
+    setHandleStatus("checking");
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/user/handle/check?handle=${handle}`);
+        const data = await res.json();
+        if (data.available) {
+          setHandleStatus("available");
+          setHandleError("");
+        } else {
+          setHandleStatus("taken");
+          setHandleError(data.error || "This handle is already taken");
+        }
+      } catch {
+        setHandleStatus("invalid");
+        setHandleError("Failed to check availability");
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timeout);
+  }, [handle]);
 
   // Rules Logic
   const addPricingRule = () =>
@@ -177,6 +219,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
     try {
       await updateUser.mutateAsync({
         name,
+        handle: handle || undefined, // Only send if set
         bio,
         address,
         phoneNumber,
@@ -256,6 +299,39 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
                 onChange={(e) => setName(e.target.value)}
                 className="w-full"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Handle <span className="text-muted-foreground text-xs">(your unique URL)</span>
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  @
+                </div>
+                <Input
+                  type="text"
+                  placeholder="yourhandle"
+                  value={handle}
+                  onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  className="w-full pl-8 pr-10"
+                  maxLength={15}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {handleStatus === "checking" && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  {handleStatus === "available" && <Check className="h-4 w-4 text-green-500" />}
+                  {(handleStatus === "taken" || handleStatus === "invalid") && <AlertCircle className="h-4 w-4 text-red-500" />}
+                </div>
+              </div>
+              {handleError && (
+                <p className="text-xs text-red-500">{handleError}</p>
+              )}
+              {handleStatus === "available" && handle && (
+                <p className="text-xs text-green-600">globalphone.me/u/{handle} is available!</p>
+              )}
+              {handle.length > 0 && handle.length < 4 && (
+                <p className="text-xs text-muted-foreground">Handle must be at least 4 characters</p>
+              )}
             </div>
 
             <div className="space-y-2">

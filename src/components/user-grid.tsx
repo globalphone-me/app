@@ -55,6 +55,7 @@ export function UserGrid() {
                         <UserCard
                             key={user.address}
                             address={user.address}
+                            handle={user.handle}
                             name={user.displayName}
                             bio={user.bio || ""}
                             price={parseFloat(user.price)}
