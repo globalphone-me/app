@@ -11,15 +11,18 @@ import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { YourPriceCard } from "@/components/your-price-card";
+import { AvatarCropper } from "@/components/avatar-cropper";
+import Image from "next/image";
 
 interface UserProfile {
     name: string;
     bio?: string;
     address: string;
-    phoneNumber: string; // We might want to mask this or not send it at all for public profiles? Usually safe if it's just the ID.
+    phoneNumber: string;
     price: string;
     onlyHumans: boolean;
-    availability?: any; // Reusing the type from db logic implicitly for now
+    availability?: any;
+    avatarUrl?: string;
 }
 
 export default function ProfilePage() {
@@ -30,6 +33,7 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [copied, setCopied] = useState(false);
+    const [avatarCropperOpen, setAvatarCropperOpen] = useState(false);
 
     const { isConnected, address: currentAddress } = useAccount();
     const router = useRouter();
@@ -106,9 +110,46 @@ export default function ProfilePage() {
                     <div className="md:col-span-1 space-y-6">
                         <Card>
                             <CardHeader className="text-center">
-                                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold">
-                                    {user.name ? user.name[0].toUpperCase() : "?"}
-                                </div>
+                                {/* Avatar - clickable for owner */}
+                                {isConnected && user.address.toLowerCase() === (currentAddress || "").toLowerCase() ? (
+                                    <button
+                                        onClick={() => setAvatarCropperOpen(true)}
+                                        className="relative w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden group cursor-pointer"
+                                        title="Click to change profile picture"
+                                    >
+                                        {user.avatarUrl ? (
+                                            <Image
+                                                src={user.avatarUrl}
+                                                alt={user.name || "Profile"}
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-3xl font-bold">
+                                                {user.name ? user.name[0].toUpperCase() : "?"}
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Pencil className="h-6 w-6 text-white" />
+                                        </div>
+                                    </button>
+                                ) : (
+                                    <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden">
+                                        {user.avatarUrl ? (
+                                            <Image
+                                                src={user.avatarUrl}
+                                                alt={user.name || "Profile"}
+                                                width={96}
+                                                height={96}
+                                                className="object-cover w-full h-full"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-3xl font-bold">
+                                                {user.name ? user.name[0].toUpperCase() : "?"}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                                 <CardTitle>{user.name || "Anonymous User"}</CardTitle>
                                 {user.bio && (
                                     <p className="text-sm text-center mt-2 px-4">{user.bio}</p>
@@ -193,6 +234,16 @@ export default function ProfilePage() {
                     </div >
                 </div >
             </main >
+
+            {/* Avatar Cropper Modal */}
+            <AvatarCropper
+                open={avatarCropperOpen}
+                onClose={() => setAvatarCropperOpen(false)}
+                onUploadComplete={(newAvatarUrl) => {
+                    setUser(prev => prev ? { ...prev, avatarUrl: newAvatarUrl } : null);
+                }}
+                currentAvatarUrl={user.avatarUrl}
+            />
         </div >
     );
 }

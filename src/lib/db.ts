@@ -42,6 +42,7 @@ export interface Callee {
   rules?: any[];
   availability?: Availability;
   bio?: string;
+  avatarUrl?: string;
 }
 
 class PostgresDB {
@@ -129,6 +130,7 @@ class PostgresDB {
       rules: user.rules ? JSON.parse(user.rules) : [],
       availability: user.availability ? JSON.parse(user.availability) : undefined,
       bio: user.bio || undefined,
+      avatarUrl: user.avatarUrl || undefined,
     };
   }
 
@@ -175,7 +177,15 @@ class PostgresDB {
         rules: user.rules ? JSON.parse(user.rules) : [],
         availability: user.availability ? JSON.parse(user.availability) : undefined,
         bio: user.bio || undefined,
+        avatarUrl: user.avatarUrl || undefined,
       }));
+  }
+
+  async updateUserAvatar(address: string, avatarUrl: string): Promise<void> {
+    await drizzleDb
+      .update(users)
+      .set({ avatarUrl, updatedAt: new Date() })
+      .where(eq(users.address, address.toLowerCase()));
   }
 
   // --- CALL SESSION METHODS ---

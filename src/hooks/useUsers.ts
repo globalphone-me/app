@@ -8,6 +8,7 @@ export interface User {
   price: string;
   onlyHumans: boolean;
   availability?: Availability;
+  avatarUrl?: string;
 }
 
 export interface UpdateUserData {
