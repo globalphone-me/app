@@ -16,6 +16,7 @@ import Image from "next/image";
 
 interface UserProfile {
     name: string;
+    handle?: string;
     bio?: string;
     address: string;
     phoneNumber: string;
@@ -27,7 +28,8 @@ interface UserProfile {
 
 export default function ProfilePage() {
     const params = useParams();
-    const address = params.address as string;
+    // The param is named 'address' in the route but can be either address or handle
+    const identifier = params.address as string;
 
     const [user, setUser] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -55,10 +57,11 @@ export default function ProfilePage() {
 
     useEffect(() => {
         async function fetchUser() {
-            if (!address) return;
+            if (!identifier) return;
 
             try {
-                const res = await fetch(`/api/user?address=${address}`);
+                // identifier can be address or handle
+                const res = await fetch(`/api/user?identifier=${identifier}`);
                 if (!res.ok) {
                     throw new Error("User not found");
                 }
@@ -78,7 +81,7 @@ export default function ProfilePage() {
         }
 
         fetchUser();
-    }, [address]);
+    }, [identifier]);
 
     if (loading) {
         return (
@@ -92,7 +95,7 @@ export default function ProfilePage() {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4">
                 <h1 className="text-2xl font-bold text-destructive">Profile Not Found</h1>
-                <p className="text-muted-foreground">The user {address} does not exist or has no profile.</p>
+                <p className="text-muted-foreground">The user {identifier} does not exist or has no profile.</p>
             </div>
         );
     }

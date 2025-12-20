@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, address, phoneNumber, price, onlyHumans, rules, availability, bio } = body;
+    const { name, handle, address, phoneNumber, price, onlyHumans, rules, availability, bio } = body;
 
     if (!name || !address || !phoneNumber || !price) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       rules || [],
       availability,
       bio,
+      handle,
     );
 
     return NextResponse.json({ success: true });

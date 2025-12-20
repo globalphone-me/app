@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface User {
   address: string;
+  handle?: string;
   displayName: string;
   bio?: string;
   price: string;
@@ -13,6 +14,7 @@ export interface User {
 
 export interface UpdateUserData {
   name: string;
+  handle?: string;
   bio?: string;
   address: string;
   phoneNumber: string;

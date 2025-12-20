@@ -34,6 +34,7 @@ export interface Availability {
 export interface Callee {
   id: string;
   name: string;
+  handle?: string;
   realPhoneNumber: string;
   phoneId: string;
   address: string;
@@ -65,12 +66,14 @@ class PostgresDB {
     rules: any[],
     availability?: Availability,
     bio?: string,
+    handle?: string,
   ): Promise<Callee> {
     const phoneId = this.generatePhoneId(realPhoneNumber);
     const lowerAddr = address.toLowerCase();
 
     const [user] = await drizzleDb.insert(users).values({
       name,
+      handle: handle ? handle.toLowerCase() : undefined,
       realPhoneNumber,
       phoneId,
       address: lowerAddr,
@@ -84,6 +87,7 @@ class PostgresDB {
         target: users.address,
         set: {
           name,
+          handle: handle ? handle.toLowerCase() : undefined,
           realPhoneNumber,
           phoneId,
           price,
@@ -122,6 +126,7 @@ class PostgresDB {
     return {
       id: user.id,
       name: user.name || "",
+      handle: user.handle || undefined,
       realPhoneNumber: user.realPhoneNumber || "",
       phoneId: user.phoneId || "",
       address: user.address,
@@ -169,6 +174,7 @@ class PostgresDB {
       .map(user => ({
         id: user.id,
         name: user.name || "",
+        handle: user.handle || undefined,
         realPhoneNumber: user.realPhoneNumber || "",
         phoneId: user.phoneId || "",
         address: user.address,
@@ -185,6 +191,47 @@ class PostgresDB {
     await drizzleDb
       .update(users)
       .set({ avatarUrl, updatedAt: new Date() })
+      .where(eq(users.address, address.toLowerCase()));
+  }
+
+  async getByHandle(handle: string): Promise<Callee | null> {
+    const [user] = await drizzleDb
+      .select()
+      .from(users)
+      .where(eq(users.handle, handle.toLowerCase()))
+      .limit(1);
+
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      name: user.name || "",
+      handle: user.handle || undefined,
+      realPhoneNumber: user.realPhoneNumber || "",
+      phoneId: user.phoneId || "",
+      address: user.address,
+      price: user.price || "0",
+      onlyHumans: user.onlyHumans || false,
+      rules: user.rules ? JSON.parse(user.rules) : [],
+      availability: user.availability ? JSON.parse(user.availability) : undefined,
+      bio: user.bio || undefined,
+      avatarUrl: user.avatarUrl || undefined,
+    };
+  }
+
+  async isHandleAvailable(handle: string): Promise<boolean> {
+    const [existing] = await drizzleDb
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.handle, handle.toLowerCase()))
+      .limit(1);
+    return !existing;
+  }
+
+  async updateUserHandle(address: string, handle: string): Promise<void> {
+    await drizzleDb
+      .update(users)
+      .set({ handle: handle.toLowerCase(), updatedAt: new Date() })
       .where(eq(users.address, address.toLowerCase()));
   }
 
