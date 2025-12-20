@@ -55,6 +55,24 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [deviceStatus, setDeviceStatus] = useState("Initializing...");
 
+  // Call timer state
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
+  const [callDuration, setCallDuration] = useState(0);
+
+  // Call duration timer effect
+  useEffect(() => {
+    if (!callStartTime) {
+      setCallDuration(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - callStartTime) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [callStartTime]);
+
   // Initialize Twilio Device on Mount
   useEffect(() => {
     let deviceInstance: Device | null = null;
@@ -158,6 +176,7 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
       // Handle Call Events
       newCall.on('accept', () => {
         monitor.log("Call accepted");
+        setCallStartTime(Date.now());
         setCurrentStep('idle');
         setError('');
       });
@@ -165,6 +184,7 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
       newCall.on('disconnect', () => {
         monitor.log("Call disconnected");
         setActiveCall(null);
+        setCallStartTime(null);
         setCurrentStep('idle');
       });
 
@@ -495,94 +515,157 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
       </CardContent>
 
       {/* Pre-Call Payment Modal */}
-      <Dialog open={showPreCallModal} onOpenChange={setShowPreCallModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirm Payment</DialogTitle>
-            <DialogDescription>
-              Review your balance before starting the call
-            </DialogDescription>
-          </DialogHeader>
+      <Dialog
+        open={showPreCallModal}
+        onOpenChange={(open) => {
+          // Prevent closing during processing or active call
+          if (!open && (isProcessing || activeCall)) return;
+          setShowPreCallModal(open);
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => {
+            // Prevent close on click outside during processing/call
+            if (isProcessing || activeCall) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            // Prevent close on Escape during processing/call
+            if (isProcessing || activeCall) e.preventDefault();
+          }}
+        >
+          {/* In-Call View */}
+          {activeCall ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-center">📞 Call in Progress</DialogTitle>
+                <DialogDescription className="text-center">
+                  Connected - call duration
+                </DialogDescription>
+              </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            {/* Wallet Balance */}
-            <div className="p-4 bg-muted rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Wallet className="h-4 w-4" />
-                  Your Balance
-                </span>
-                {isBalanceLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <span className="font-semibold">
-                    ${currentBalance.toFixed(2)} USDC
-                  </span>
-                )}
+              <div className="space-y-6 py-6">
+                {/* Timer Display */}
+                <div className="text-center">
+                  <div className="text-5xl font-mono font-bold text-primary">
+                    {Math.floor(callDuration / 60).toString().padStart(2, '0')}:
+                    {(callDuration % 60).toString().padStart(2, '0')}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">Call duration</p>
+                </div>
+
+                {/* Hang Up Button */}
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleHangup}
+                >
+                  🛑 Hang Up
+                </Button>
               </div>
+            </>
+          ) : (
+            /* Pre-Call View */
+            <>
+              <DialogHeader>
+                <DialogTitle>Confirm Payment</DialogTitle>
+                <DialogDescription>
+                  Review your balance before starting the call
+                </DialogDescription>
+              </DialogHeader>
 
-              <div className="flex items-center justify-between border-t pt-3">
-                <span className="text-sm text-muted-foreground">Call Price</span>
-                <span className="font-semibold">${requiredAmount.toFixed(2)} USDC</span>
-              </div>
-            </div>
-
-            {/* Balance Status */}
-            {!isBalanceLoading && (
-              <div className={`p-3 rounded-lg flex items-center gap-2 ${hasEnoughBalance
-                  ? 'bg-green-50 text-green-700'
-                  : 'bg-red-50 text-red-700'
-                }`}>
-                {hasEnoughBalance ? (
-                  <>
-                    <CheckCircle className="h-4 w-4" />
-                    <span className="text-sm">You have enough balance to make this call</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="h-4 w-4" />
-                    <span className="text-sm">
-                      Insufficient balance. You need ${(requiredAmount - currentBalance).toFixed(2)} more USDC
+              <div className="space-y-4 py-4">
+                {/* Wallet Balance */}
+                <div className="p-4 bg-muted rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Wallet className="h-4 w-4" />
+                      Your Balance
                     </span>
-                  </>
-                )}
-              </div>
-            )}
+                    {isBalanceLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <span className="font-semibold">
+                        ${currentBalance.toFixed(2)} USDC
+                      </span>
+                    )}
+                  </div>
 
-            {/* Error display */}
-            {error && (
-              <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md">
-                {error}
-              </div>
-            )}
+                  <div className="flex items-center justify-between border-t pt-3">
+                    <span className="text-sm text-muted-foreground">Call Price</span>
+                    <span className="font-semibold">${requiredAmount.toFixed(2)} USDC</span>
+                  </div>
+                </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowPreCallModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={!hasEnoughBalance || isBalanceLoading || isProcessing}
-                onClick={() => {
-                  handleCall();
-                }}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  `Pay $${requiredAmount.toFixed(2)} & Call`
+                {/* Balance Status */}
+                {!isBalanceLoading && (
+                  <div className={`p-3 rounded-lg flex items-center gap-2 ${hasEnoughBalance
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
+                    }`}>
+                    {hasEnoughBalance ? (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="text-sm">You have enough balance to make this call</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-sm">
+                          Insufficient balance. You need ${(requiredAmount - currentBalance).toFixed(2)} more USDC
+                        </span>
+                      </>
+                    )}
+                  </div>
                 )}
-              </Button>
-            </div>
-          </div>
+
+                {/* Processing Status */}
+                {isProcessing && (
+                  <div className="p-3 text-sm bg-primary/10 text-primary rounded-md flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {currentStep === 'verifying' && 'Verifying humanity...'}
+                    {currentStep === 'paying' && 'Processing payment...'}
+                    {currentStep === 'calling' && 'Connecting call...'}
+                  </div>
+                )}
+
+                {/* Error display */}
+                {error && (
+                  <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md">
+                    {error}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowPreCallModal(false)}
+                    disabled={isProcessing}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    disabled={!hasEnoughBalance || isBalanceLoading || isProcessing}
+                    onClick={() => {
+                      handleCall();
+                    }}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      `Pay $${requiredAmount.toFixed(2)} & Call`
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </Card>
