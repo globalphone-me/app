@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Phone } from "lucide-react";
 import { Availability } from "@/lib/db";
-import { isUserAvailable } from "@/lib/availability";
+import { isUserAvailable, getTimeUntilAvailable } from "@/lib/availability";
 
 interface UserCardProps {
     address: string;
@@ -26,6 +26,7 @@ export function UserCard({ address, handle, name, bio, avatarUrl, price, availab
         .slice(0, 2);
 
     const isAvailable = isUserAvailable(availability);
+    const timeUntilAvailable = getTimeUntilAvailable(availability);
 
     return (
         <article className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
@@ -48,7 +49,7 @@ export function UserCard({ address, handle, name, bio, avatarUrl, price, availab
                     {/* Availability dot */}
                     <div
                         className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${isAvailable ? 'bg-green-500' : 'bg-gray-400'}`}
-                        title={isAvailable ? "Available now" : "Currently unavailable"}
+                        title={isAvailable ? "Available now" : (timeUntilAvailable ? `Available ${timeUntilAvailable}` : "Currently unavailable")}
                     />
                 </div>
                 <div>
@@ -69,7 +70,9 @@ export function UserCard({ address, handle, name, bio, avatarUrl, price, availab
             ) : (
                 <div className="w-full bg-gray-300 text-gray-500 font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed">
                     <Phone className="h-4 w-4" />
-                    <span>Unavailable</span>
+                    <span>{timeUntilAvailable
+                        ? `Available ${timeUntilAvailable.replace(/ at \d+:\d+ [AP]M/, '')}`
+                        : "Unavailable"}</span>
                 </div>
             )}
         </article>

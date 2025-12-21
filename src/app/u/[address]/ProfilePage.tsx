@@ -6,7 +6,7 @@ import { useAccount, useDisconnect } from "wagmi";
 import { Loader2, ShieldCheck, Clock, Pencil, Share2, Check, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CallCard } from "@/components/call-card";
-import { isUserAvailable } from "@/lib/availability";
+import { isUserAvailable, getTimeUntilAvailable } from "@/lib/availability";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -101,6 +101,7 @@ export default function ProfilePage() {
     }
 
     const isAvailable = isUserAvailable(user.availability);
+    const timeUntilAvailable = getTimeUntilAvailable(user.availability);
     const formattedAddress = `${user.address.slice(0, 6)}...${user.address.slice(-4)}`;
 
     return (
@@ -207,7 +208,7 @@ export default function ProfilePage() {
 
                                 <div className={`flex items-center gap-2 text-sm p-2 rounded justify-center ${isAvailable ? 'text-green-600 bg-green-50' : 'text-orange-600 bg-orange-50'}`}>
                                     <Clock className="h-4 w-4" />
-                                    <span>{isAvailable ? "Available Now" : "Currently Unavailable"}</span>
+                                    <span>{isAvailable ? "Available Now" : (timeUntilAvailable ? `Available ${timeUntilAvailable}` : "Currently Unavailable")}</span>
                                 </div>
 
                                 {/* Logout Button - Only for profile owner */}
@@ -233,7 +234,7 @@ export default function ProfilePage() {
                                 prefilledAddress={user.address}
                                 prefilledPrice={user.price}
                                 disabled={!isAvailable}
-                                callButtonText={!isAvailable ? "Not available to call" : undefined}
+                                callButtonText={!isAvailable ? (timeUntilAvailable ? `Available ${timeUntilAvailable}` : "Not available") : undefined}
                                 calleeName={user.name}
                             />
                         </div>
