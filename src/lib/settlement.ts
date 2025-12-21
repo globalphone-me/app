@@ -40,8 +40,8 @@ export async function settleCall(session: CallSession) {
           "⚠️ Refund amount is 0 or negative (Connection Fee consumed entire price). No refund sent.",
           { session }
         );
-        // Still mark payment as refunded (even if $0 refund)
-        await db.updatePaymentStatus(session.paymentId, "REFUNDED");
+        // Still mark payment as refunded (even if $0 refund) - fee is the full price
+        await db.updatePaymentStatus(session.paymentId, "REFUNDED", undefined, price);
         return;
       }
 
@@ -50,7 +50,7 @@ export async function settleCall(session: CallSession) {
         { session, amount: refundAmount }
       );
       const txHash = await sendUSDC(callerWallet, refundAmount, chainId);
-      await db.updatePaymentStatus(session.paymentId, "REFUNDED", txHash);
+      await db.updatePaymentStatus(session.paymentId, "REFUNDED", txHash, CONNECTION_FEE);
     }
 
     // SCENARIO B: SUCCESS (Payout)
@@ -63,7 +63,7 @@ export async function settleCall(session: CallSession) {
         { session, amount: payoutAmount, platformFee }
       );
       const txHash = await sendUSDC(callee.address, payoutAmount, chainId);
-      await db.updatePaymentStatus(session.paymentId, "FORWARDED", txHash);
+      await db.updatePaymentStatus(session.paymentId, "FORWARDED", txHash, platformFee);
     }
   } catch (error) {
     monitor.error("❌ SETTLEMENT FAILED:", { error, session });

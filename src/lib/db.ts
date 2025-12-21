@@ -434,6 +434,7 @@ class PostgresDB {
     paymentId: string,
     status: "HELD" | "FORWARDED" | "REFUNDED" | "STUCK",
     txHash?: string,
+    feeCharged?: number,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {
       status,
@@ -444,6 +445,10 @@ class PostgresDB {
       updateData.forwardTxHash = txHash;
     } else if (status === "REFUNDED" && txHash) {
       updateData.refundTxHash = txHash;
+    }
+
+    if (feeCharged !== undefined) {
+      updateData.feeCharged = feeCharged.toString();
     }
 
     await drizzleDb
@@ -556,19 +561,22 @@ class PostgresDB {
       .from(payments)
       .where(eq(payments.status, "REFUNDED"));
 
-    // Count of refunded payments (for anti-spam fee calculation)
+    // Count of refunded payments (for display purposes)
     const [refundedCount] = await drizzleDb
       .select({ count: count() })
       .from(payments)
       .where(eq(payments.status, "REFUNDED"));
 
-    // Fee constants imported from config.ts
-    // Revenue calculation:
-    // - For forwarded: 10% of the payment amount
-    // - For refunded: fixed anti-spam fee per refund
-    const forwardedRevenue = parseFloat(forwardedGmv?.total || "0") * PLATFORM_FEE_PERCENT;
-    const refundedRevenue = (refundedCount?.count || 0) * ANTI_SPAM_FEE;
-    const totalRevenue = forwardedRevenue + refundedRevenue;
+    // Revenue calculation: sum of all feeCharged values
+    // This uses actual recorded fees for historical accuracy
+    const [totalFees] = await drizzleDb
+      .select({
+        total: sql<string>`COALESCE(SUM(${payments.feeCharged}), 0)`,
+      })
+      .from(payments)
+      .where(sql`${payments.feeCharged} IS NOT NULL`);
+
+    const totalRevenue = parseFloat(totalFees?.total || "0");
 
     return {
       totalUsers: userCount?.count || 0,
