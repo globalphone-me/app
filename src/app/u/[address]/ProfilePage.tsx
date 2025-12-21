@@ -113,7 +113,38 @@ export default function ProfilePage() {
         );
     }
 
+    // Check if this is the connected user viewing their own (non-existent) profile
+    const isOwnProfile = isConnected && currentAddress &&
+        identifier.toLowerCase() === currentAddress.toLowerCase();
+
     if (error || !user) {
+        // If user is viewing their own address and profile doesn't exist, show setup form
+        if (isOwnProfile) {
+            return (
+                <div className="min-h-screen bg-zinc-50 dark:bg-black">
+                    <Header />
+                    <main className="container mx-auto px-4 py-12 max-w-2xl">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-center">Create Your Profile</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-center text-muted-foreground mb-6">
+                                    Set up your profile to start receiving calls and earning USDC.
+                                </p>
+                                <YourPriceCard
+                                    onClose={() => {
+                                        // Refresh the page after profile creation
+                                        window.location.reload();
+                                    }}
+                                />
+                            </CardContent>
+                        </Card>
+                    </main>
+                </div>
+            );
+        }
+
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4">
                 <h1 className="text-2xl font-bold text-destructive">Profile Not Found</h1>
