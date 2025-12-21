@@ -53,8 +53,10 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
   const [handleError, setHandleError] = useState("");
   const [bio, setBio] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [price, setPrice] = useState("0.1");
+  const [price, setPrice] = useState("5");
+  const MIN_PRICE = 5; // Minimum $5 to cover Twilio costs
   const [onlyHumans, setOnlyHumans] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
 
   // MiniKit logic ...
@@ -223,7 +225,18 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
   // Save Handler
   const handleConfirmSetup = async () => {
-    if (!name || !phoneNumber || !price || !address) return; // Check Name
+    setSaveError("");
+
+    if (!name || !phoneNumber || !price || !address) {
+      setSaveError("Please fill in all required fields");
+      return;
+    }
+
+    // Validate minimum price
+    if (parseFloat(price) < MIN_PRICE) {
+      setSaveError(`Minimum price is $${MIN_PRICE} USDC`);
+      return;
+    }
 
     try {
       await updateUser.mutateAsync({
@@ -256,7 +269,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
       if (onClose) onClose();
     } catch (e) {
       console.error(e);
-      alert("Error saving settings.");
+      setSaveError("Failed to save settings. Please try again.");
     }
   };
 
@@ -367,14 +380,16 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Base Price (USDC)</label>
+              <label className="text-sm font-medium">Base Price (USDC) - Minimum ${MIN_PRICE}</label>
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
                   placeholder="5"
                   value={price}
+                  min={MIN_PRICE}
+                  step="0.1"
                   onChange={(e) => setPrice(e.target.value)}
-                  className="flex-1"
+                  className={`flex-1 ${parseFloat(price) < MIN_PRICE ? 'border-red-500' : ''}`}
                 />
                 <div className="flex items-center space-x-2 whitespace-nowrap">
                   <Checkbox
@@ -515,6 +530,14 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
               </Button>
             </div>
           </div>
+
+          {/* Error Message */}
+          {saveError && (
+            <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {saveError}
+            </div>
+          )}
 
           <Button
             onClick={handleConfirmSetup}
