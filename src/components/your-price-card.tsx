@@ -88,7 +88,22 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
   // Availability State
   const [availabilityEnabled, setAvailabilityEnabled] = useState(false);
-  const [timezone, setTimezone] = useState("UTC");
+  // Default to user's timezone or UTC
+  const userTimezone = typeof Intl !== 'undefined'
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : 'UTC';
+  const [timezone, setTimezone] = useState(userTimezone);
+  const [timezoneSearch, setTimezoneSearch] = useState('');
+  const [showTimezoneDropdown, setShowTimezoneDropdown] = useState(false);
+
+  // Get all IANA timezones
+  const allTimezones = typeof Intl !== 'undefined' && Intl.supportedValuesOf
+    ? Intl.supportedValuesOf('timeZone')
+    : ['UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo'];
+
+  const filteredTimezones = allTimezones.filter(tz =>
+    tz.toLowerCase().includes(timezoneSearch.toLowerCase())
+  ).slice(0, 10); // Limit to 10 results for performance
   const [weekdaysStart, setWeekdaysStart] = useState("09:00");
   const [weekdaysEnd, setWeekdaysEnd] = useState("17:00");
   const [weekdaysEnabled, setWeekdaysEnabled] = useState(true);
@@ -427,15 +442,48 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
               {availabilityEnabled && (
                 <div className="space-y-4 p-3 bg-slate-50 rounded-lg">
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <label className="text-xs font-semibold uppercase text-muted-foreground">Timezone</label>
-                    <Input
-                      value={timezone}
-                      onChange={(e) => setTimezone(e.target.value)}
-                      placeholder="e.g. Europe/Paris"
-                      className="bg-white"
-                    />
-                    <p className="text-xs text-muted-foreground">Use standard IANA timezones (e.g. America/New_York)</p>
+                    <div className="relative">
+                      <Input
+                        value={showTimezoneDropdown ? timezoneSearch : timezone}
+                        onChange={(e) => {
+                          setTimezoneSearch(e.target.value);
+                          setShowTimezoneDropdown(true);
+                        }}
+                        onFocus={() => {
+                          setTimezoneSearch('');
+                          setShowTimezoneDropdown(true);
+                        }}
+                        onBlur={() => {
+                          // Delay to allow click on dropdown item
+                          setTimeout(() => setShowTimezoneDropdown(false), 150);
+                        }}
+                        placeholder="Search timezones..."
+                        className="bg-white"
+                      />
+                      {showTimezoneDropdown && filteredTimezones.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          {filteredTimezones.map((tz) => (
+                            <button
+                              key={tz}
+                              type="button"
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors ${tz === timezone ? 'bg-primary/10 font-medium' : ''
+                                }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setTimezone(tz);
+                                setTimezoneSearch('');
+                                setShowTimezoneDropdown(false);
+                              }}
+                            >
+                              {tz.replace(/_/g, ' ')}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Current: {timezone.replace(/_/g, ' ')}</p>
                   </div>
 
                   {/* Weekdays */}
