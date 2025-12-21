@@ -11,7 +11,25 @@ import { Pencil, Plus, X, Loader2, Check, AlertCircle } from "lucide-react";
 import { mainnet } from "wagmi/chains";
 import { isWorldApp } from "@/lib/world-app";
 import { useUpdateUser } from "@/hooks/useUsers";
-import { parsePhoneNumberFromString, isValidPhoneNumber } from "libphonenumber-js";
+import { parsePhoneNumberFromString, isValidPhoneNumber, type CountryCode } from "libphonenumber-js";
+
+// Allowed countries for phone numbers
+const ALLOWED_COUNTRIES: CountryCode[] = [
+  "US", // United States (+1)
+  "AR", // Argentina (+54)
+  "BR", // Brazil (+55)
+  "AT", // Austria (+43)
+  "BE", // Belgium (+32)
+  "FR", // France (+33)
+  "DE", // Germany (+49)
+  "PT", // Portugal (+351)
+  "CH", // Switzerland (+41)
+  "GB", // United Kingdom (+44)
+  "IN", // India (+91)
+  "IL", // Israel (+972)
+  "JP", // Japan (+81)
+  "AU", // Australia (+61)
+];
 
 type RuleType = "poap" | "token" | "ens" | "humans";
 
@@ -284,8 +302,15 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
       return;
     }
 
-    if (!isValidPhoneNumber(value)) {
+    const parsed = parsePhoneNumberFromString(value);
+
+    if (!parsed || !isValidPhoneNumber(value)) {
       setPhoneError("Invalid phone number");
+      return;
+    }
+
+    if (!parsed.country || !ALLOWED_COUNTRIES.includes(parsed.country)) {
+      setPhoneError("Country not supported. Supported: US, AR, BR, AT, BE, FR, DE, PT, CH, GB, IN, IL, JP, AU");
       return;
     }
 
