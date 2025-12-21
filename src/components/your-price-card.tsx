@@ -396,32 +396,15 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Base Price (USDC) - Minimum ${MIN_PRICE}</label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  placeholder="5"
-                  value={price}
-                  min={MIN_PRICE}
-                  step="0.1"
-                  onChange={(e) => setPrice(e.target.value)}
-                  className={`flex-1 ${parseFloat(price) < MIN_PRICE ? 'border-red-500' : ''}`}
-                />
-                <div className="flex items-center space-x-2 whitespace-nowrap">
-                  <Checkbox
-                    id={isEditing ? "only-humans-edit" : "only-humans"}
-                    checked={onlyHumans}
-                    onCheckedChange={(checked) =>
-                      setOnlyHumans(checked as boolean)
-                    }
-                  />
-                  <label
-                    htmlFor={isEditing ? "only-humans-edit" : "only-humans"}
-                    className="text-sm font-medium leading-none"
-                  >
-                    Only verified Humans
-                  </label>
-                </div>
-              </div>
+              <Input
+                type="number"
+                placeholder="5"
+                value={price}
+                min={MIN_PRICE}
+                step="0.1"
+                onChange={(e) => setPrice(e.target.value)}
+                className={`${parseFloat(price) < MIN_PRICE ? 'border-red-500' : ''}`}
+              />
             </div>
 
             {/* Availability Section */}
