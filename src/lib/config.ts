@@ -17,3 +17,14 @@ export const PAYMENT_RECIPIENT_ADDRESS =
 // USDC token address on Worldchain
 // export const USDC_TOKEN_ADDRESS = "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88";
 export const USDC_TOKEN_ADDRESS = "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1";
+
+// ============ PRICING CONFIGURATION ============
+
+// Minimum price a user can set for receiving calls (in USDC)
+export const MIN_CALL_PRICE = 2;
+
+// Platform fee percentage (10% = 0.10)
+export const PLATFORM_FEE_PERCENT = 0.10;
+
+// Anti-spam fee deducted from refunds for missed/rejected calls (in USDC)
+export const ANTI_SPAM_FEE = 0.20;

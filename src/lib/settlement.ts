@@ -1,4 +1,4 @@
-import { CHAIN, WORLDCHAIN, USDC_TOKEN_ADDRESS } from "./config";
+import { CHAIN, WORLDCHAIN, USDC_TOKEN_ADDRESS, PLATFORM_FEE_PERCENT, ANTI_SPAM_FEE } from "./config";
 import { walletClient, worldChainWalletClient } from "./wallet";
 import { parseUnits, encodeFunctionData, erc20Abi } from "viem";
 import { db, CallSession } from "./db";
@@ -10,9 +10,8 @@ const USDC_ADDRESS = {
   [WORLDCHAIN.id]: USDC_TOKEN_ADDRESS,
 };
 
-// Configuration
-const CONNECTION_FEE = 0.1; // 10 cents Spam Tax
-const PLATFORM_FEE_PERCENT = 0.1; // 10%
+// CONNECTION_FEE is the same as ANTI_SPAM_FEE (deducted on refunds)
+const CONNECTION_FEE = ANTI_SPAM_FEE;
 
 export async function settleCall(session: CallSession) {
   try {

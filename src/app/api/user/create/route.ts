@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
 import { verifySessionToken } from "@/lib/auth";
+import { MIN_CALL_PRICE } from "@/lib/config";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,10 +23,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Minimum price validation
-    const MIN_PRICE = 5;
-    if (parseFloat(price) < MIN_PRICE) {
+    if (parseFloat(price) < MIN_CALL_PRICE) {
       return NextResponse.json(
-        { error: `Minimum price is $${MIN_PRICE} USDC` },
+        { error: `Minimum price is $${MIN_CALL_PRICE} USDC` },
         { status: 400 }
       );
     }

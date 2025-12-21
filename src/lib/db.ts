@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { eq, sql, count, desc, asc } from "drizzle-orm";
 import { db as drizzleDb } from "./drizzle";
 import { users, callSessions, payments } from "./schema";
+import { PLATFORM_FEE_PERCENT, ANTI_SPAM_FEE } from "./config";
 
 // Types that match the old interface for backwards compatibility
 export interface CallSession {
@@ -561,13 +562,10 @@ class PostgresDB {
       .from(payments)
       .where(eq(payments.status, "REFUNDED"));
 
-    // Fee constants (matching settlement.ts)
-    const PLATFORM_FEE_PERCENT = 0.10; // 10%
-    const ANTI_SPAM_FEE = 0.10; // $0.10 per refunded call
-
+    // Fee constants imported from config.ts
     // Revenue calculation:
     // - For forwarded: 10% of the payment amount
-    // - For refunded: $0.10 fixed anti-spam fee per refund
+    // - For refunded: fixed anti-spam fee per refund
     const forwardedRevenue = parseFloat(forwardedGmv?.total || "0") * PLATFORM_FEE_PERCENT;
     const refundedRevenue = (refundedCount?.count || 0) * ANTI_SPAM_FEE;
     const totalRevenue = forwardedRevenue + refundedRevenue;
