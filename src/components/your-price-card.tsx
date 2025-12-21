@@ -11,6 +11,25 @@ import { Pencil, Plus, X, Loader2, Check, AlertCircle } from "lucide-react";
 import { mainnet } from "wagmi/chains";
 import { isWorldApp } from "@/lib/world-app";
 import { useUpdateUser } from "@/hooks/useUsers";
+import { parsePhoneNumberFromString, isValidPhoneNumber, type CountryCode } from "libphonenumber-js";
+
+// Allowed countries for phone numbers
+const ALLOWED_COUNTRIES: CountryCode[] = [
+  "US", // United States (+1)
+  "AR", // Argentina (+54)
+  "BR", // Brazil (+55)
+  "AT", // Austria (+43)
+  "BE", // Belgium (+32)
+  "FR", // France (+33)
+  "DE", // Germany (+49)
+  "PT", // Portugal (+351)
+  "CH", // Switzerland (+41)
+  "GB", // United Kingdom (+44)
+  "IN", // India (+91)
+  "IL", // Israel (+972)
+  "JP", // Japan (+81)
+  "AU", // Australia (+61)
+];
 
 type RuleType = "poap" | "token" | "ens" | "humans";
 
@@ -53,6 +72,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
   const [handleError, setHandleError] = useState("");
   const [bio, setBio] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [price, setPrice] = useState("5");
   const MIN_PRICE = 5; // Minimum $5 to cover Twilio costs
   const [onlyHumans, setOnlyHumans] = useState(false);
@@ -253,13 +273,17 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
       return;
     }
 
+    // Normalize phone number to E.164 format for Twilio
+    const parsed = parsePhoneNumberFromString(phoneNumber);
+    const normalizedPhone = parsed?.format("E.164") || phoneNumber;
+
     try {
       await updateUser.mutateAsync({
         name,
         handle: handle || undefined, // Only send if set
         bio,
         address,
-        phoneNumber,
+        phoneNumber: normalizedPhone,
         price,
         onlyHumans,
         rules: pricingRules,
@@ -291,6 +315,37 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
   const walletDisplay = ensName || (address ? formatAddress(address) : "");
 
   const maskedPhone = phoneNumber ? maskPhoneNumber(phoneNumber) : "";
+
+  // Phone validation
+  const validatePhoneNumber = (value: string) => {
+    setPhoneNumber(value);
+
+    if (!value) {
+      setPhoneError(null);
+      return;
+    }
+
+    if (!value.startsWith("+")) {
+      setPhoneError("Include country code (e.g., +1 for US)");
+      return;
+    }
+
+    const parsed = parsePhoneNumberFromString(value);
+
+    if (!parsed || !isValidPhoneNumber(value)) {
+      setPhoneError("Invalid phone number");
+      return;
+    }
+
+    if (!parsed.country || !ALLOWED_COUNTRIES.includes(parsed.country)) {
+      setPhoneError("Country not supported. Supported: US, AR, BR, AT, BE, FR, DE, PT, CH, GB, IN, IL, JP, AU");
+      return;
+    }
+
+    setPhoneError(null);
+  };
+
+  const isPhoneValid = phoneNumber && !phoneError;
 
   // -- RENDER --
 
@@ -387,11 +442,14 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
               <label className="text-sm font-medium">Phone Number</label>
               <Input
                 type="tel"
-                placeholder="Enter your phone number"
+                placeholder="+1 555 123 4567"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full"
+                onChange={(e) => validatePhoneNumber(e.target.value)}
+                className={`w-full ${phoneError ? "border-red-500" : ""}`}
               />
+              {phoneError && (
+                <p className="text-sm text-red-500">{phoneError}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -563,7 +621,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
           <Button
             onClick={handleConfirmSetup}
             className="w-full"
-            disabled={!name || !phoneNumber || !price || updateUser.isPending}
+            disabled={!name || !isPhoneValid || !price || updateUser.isPending}
           >
             {updateUser.isPending ? (
               <>
