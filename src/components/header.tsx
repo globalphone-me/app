@@ -28,7 +28,7 @@ export function Header() {
                             GlobalPhone
                         </span>
                         <Badge variant="destructive" className="text-[0.65rem] uppercase tracking-wide">
-                            Alpha
+                            Beta
                         </Badge>
                     </div>
                 </Link>
