@@ -664,7 +664,7 @@ export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButto
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground flex items-center gap-2">
                       <Wallet className="h-4 w-4" />
-                      Your Balance
+                      Your Balance (Base)
                     </span>
                     {isBalanceLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

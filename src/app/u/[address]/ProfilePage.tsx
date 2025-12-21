@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAccount, useDisconnect } from "wagmi";
-import { Loader2, ShieldCheck, Clock, Pencil, Share2, Check, LogOut } from "lucide-react";
+import { Loader2, ShieldCheck, Clock, Pencil, Share2, Check, LogOut, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CallCard } from "@/components/call-card";
-import { isUserAvailable } from "@/lib/availability";
+import { isUserAvailable, getTimeUntilAvailable } from "@/lib/availability";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -36,6 +36,8 @@ export default function ProfilePage() {
     const [error, setError] = useState("");
     const [copied, setCopied] = useState(false);
     const [avatarCropperOpen, setAvatarCropperOpen] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const { isConnected, address: currentAddress } = useAccount();
     const router = useRouter();
@@ -53,6 +55,26 @@ export default function ProfilePage() {
         await fetch("/api/auth/logout", { method: "POST" });
         // Disconnect wallet - redirect happens in onSuccess callback
         disconnect();
+    };
+
+    const handleDeleteAccount = async () => {
+        setIsDeleting(true);
+        try {
+            const res = await fetch("/api/user/delete", { method: "DELETE" });
+            if (res.ok) {
+                // Disconnect wallet and redirect
+                disconnect();
+            } else {
+                const data = await res.json();
+                alert(data.error || "Failed to delete account");
+            }
+        } catch (err) {
+            console.error("Delete error:", err);
+            alert("Failed to delete account");
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+        }
     };
 
     useEffect(() => {
@@ -91,7 +113,38 @@ export default function ProfilePage() {
         );
     }
 
+    // Check if this is the connected user viewing their own (non-existent) profile
+    const isOwnProfile = isConnected && currentAddress &&
+        identifier.toLowerCase() === currentAddress.toLowerCase();
+
     if (error || !user) {
+        // If user is viewing their own address and profile doesn't exist, show setup form
+        if (isOwnProfile) {
+            return (
+                <div className="min-h-screen bg-zinc-50 dark:bg-black">
+                    <Header />
+                    <main className="container mx-auto px-4 py-12 max-w-2xl">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-center">Create Your Profile</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-center text-muted-foreground mb-6">
+                                    Set up your profile to start receiving calls and earning USDC.
+                                </p>
+                                <YourPriceCard
+                                    onClose={() => {
+                                        // Refresh the page after profile creation
+                                        window.location.reload();
+                                    }}
+                                />
+                            </CardContent>
+                        </Card>
+                    </main>
+                </div>
+            );
+        }
+
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4">
                 <h1 className="text-2xl font-bold text-destructive">Profile Not Found</h1>
@@ -101,6 +154,7 @@ export default function ProfilePage() {
     }
 
     const isAvailable = isUserAvailable(user.availability);
+    const timeUntilAvailable = getTimeUntilAvailable(user.availability);
     const formattedAddress = `${user.address.slice(0, 6)}...${user.address.slice(-4)}`;
 
     return (
@@ -207,20 +261,31 @@ export default function ProfilePage() {
 
                                 <div className={`flex items-center gap-2 text-sm p-2 rounded justify-center ${isAvailable ? 'text-green-600 bg-green-50' : 'text-orange-600 bg-orange-50'}`}>
                                     <Clock className="h-4 w-4" />
-                                    <span>{isAvailable ? "Available Now" : "Currently Unavailable"}</span>
+                                    <span>{isAvailable ? "Available Now" : (timeUntilAvailable ? `Available ${timeUntilAvailable}` : "Currently Unavailable")}</span>
                                 </div>
 
                                 {/* Logout Button - Only for profile owner */}
                                 {isConnected && user.address.toLowerCase() === (currentAddress || "").toLowerCase() && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
-                                        onClick={handleLogout}
-                                    >
-                                        <LogOut className="h-4 w-4 mr-2" />
-                                        Log Out
-                                    </Button>
+                                    <div className="space-y-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                                            onClick={handleLogout}
+                                        >
+                                            <LogOut className="h-4 w-4 mr-2" />
+                                            Log Out
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full text-muted-foreground hover:text-red-600 cursor-pointer"
+                                            onClick={() => setShowDeleteConfirm(true)}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Delete Account
+                                        </Button>
+                                    </div>
                                 )}
                             </CardContent>
                         </Card >
@@ -233,7 +298,7 @@ export default function ProfilePage() {
                                 prefilledAddress={user.address}
                                 prefilledPrice={user.price}
                                 disabled={!isAvailable}
-                                callButtonText={!isAvailable ? "Not available to call" : undefined}
+                                callButtonText={!isAvailable ? (timeUntilAvailable ? `Available ${timeUntilAvailable}` : "Not available") : undefined}
                                 calleeName={user.name}
                             />
                         </div>
@@ -250,6 +315,41 @@ export default function ProfilePage() {
                 }}
                 currentAvatarUrl={user.avatarUrl}
             />
+
+            {/* Delete Account Confirmation Dialog */}
+            <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent className="max-w-md">
+                    <DialogTitle className="text-red-600">Delete Account</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                        Are you sure you want to delete your account? This will remove your profile information and you will no longer be callable. You can create a new profile anytime by signing in again.
+                    </DialogDescription>
+                    <div className="flex gap-3 mt-4">
+                        <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setShowDeleteConfirm(false)}
+                            disabled={isDeleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={handleDeleteAccount}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                "Delete Account"
+                            )}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div >
     );
 }
