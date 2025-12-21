@@ -497,33 +497,23 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
               )}
             </div>
 
-            {/* Rules Section (Collapsed for brevity, same as before) */}
-            <div className="space-y-3 border-t pt-4">
-              <label className="text-sm font-medium">
-                Custom Pricing Rules (Beta)
-              </label>
-              {pricingRules.map((rule) => (
-                <div
-                  key={rule.id}
-                  className="flex gap-2 items-end border p-2 rounded"
-                >
-                  <div className="flex-1 text-sm">
-                    {getRuleTypeLabel(rule.type)}: {rule.value} - {rule.price}{" "}
-                    USDC
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removePricingRule(rule.id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+            {/* Rules Section - Coming Soon */}
+            <div className="space-y-3 border-t pt-4 opacity-50">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">
+                  Custom Pricing Rules
+                </label>
+                <span className="text-xs bg-muted px-2 py-1 rounded-full">
+                  Coming Soon
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Set different prices for POAP holders, token owners, ENS names, and more.
+              </p>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={addPricingRule}
+                disabled
                 className="w-full"
               >
                 <Plus className="h-4 w-4 mr-2" /> Add Rule
