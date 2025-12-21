@@ -13,9 +13,9 @@ export default function Home() {
       {/* Disclaimer Banner */}
       <Banner1
         title="Beta Disclaimer"
-        description="This is a Beta release of our product. Use at your own risk. We cannot guarantee phone privacy yet."
-        linkUrl=""
-        linkText=""
+        description="This is a Beta release of our product. Use at your own risk."
+        linkUrl="https://x.com/globalphone_me"
+        linkText="Send us feedback!"
       />
 
       {/* Main Content */}
