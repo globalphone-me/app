@@ -73,8 +73,10 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
   const [bio, setBio] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [price, setPrice] = useState("0.1");
+  const [price, setPrice] = useState("5");
+  const MIN_PRICE = 5; // Minimum $5 to cover Twilio costs
   const [onlyHumans, setOnlyHumans] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
 
   // MiniKit logic ...
@@ -106,7 +108,22 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
   // Availability State
   const [availabilityEnabled, setAvailabilityEnabled] = useState(false);
-  const [timezone, setTimezone] = useState("UTC");
+  // Default to user's timezone or UTC
+  const userTimezone = typeof Intl !== 'undefined'
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : 'UTC';
+  const [timezone, setTimezone] = useState(userTimezone);
+  const [timezoneSearch, setTimezoneSearch] = useState('');
+  const [showTimezoneDropdown, setShowTimezoneDropdown] = useState(false);
+
+  // Get all IANA timezones
+  const allTimezones = typeof Intl !== 'undefined' && Intl.supportedValuesOf
+    ? Intl.supportedValuesOf('timeZone')
+    : ['UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo'];
+
+  const filteredTimezones = allTimezones.filter(tz =>
+    tz.toLowerCase().includes(timezoneSearch.toLowerCase())
+  ).slice(0, 10); // Limit to 10 results for performance
   const [weekdaysStart, setWeekdaysStart] = useState("09:00");
   const [weekdaysEnd, setWeekdaysEnd] = useState("17:00");
   const [weekdaysEnabled, setWeekdaysEnabled] = useState(true);
@@ -243,7 +260,18 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
   // Save Handler
   const handleConfirmSetup = async () => {
-    if (!name || !phoneNumber || !price || !address) return; // Check Name
+    setSaveError("");
+
+    if (!name || !phoneNumber || !price || !address) {
+      setSaveError("Please fill in all required fields");
+      return;
+    }
+
+    // Validate minimum price
+    if (parseFloat(price) < MIN_PRICE) {
+      setSaveError(`Minimum price is $${MIN_PRICE} USDC`);
+      return;
+    }
 
     // Normalize phone number to E.164 format for Twilio
     const parsed = parsePhoneNumberFromString(phoneNumber);
@@ -280,7 +308,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
       if (onClose) onClose();
     } catch (e) {
       console.error(e);
-      alert("Error saving settings.");
+      setSaveError("Failed to save settings. Please try again.");
     }
   };
 
@@ -425,31 +453,16 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Base Price (USDC)</label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  placeholder="5"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="flex-1"
-                />
-                <div className="flex items-center space-x-2 whitespace-nowrap">
-                  <Checkbox
-                    id={isEditing ? "only-humans-edit" : "only-humans"}
-                    checked={onlyHumans}
-                    onCheckedChange={(checked) =>
-                      setOnlyHumans(checked as boolean)
-                    }
-                  />
-                  <label
-                    htmlFor={isEditing ? "only-humans-edit" : "only-humans"}
-                    className="text-sm font-medium leading-none"
-                  >
-                    Only verified Humans
-                  </label>
-                </div>
-              </div>
+              <label className="text-sm font-medium">Base Price (USDC) - Minimum ${MIN_PRICE}</label>
+              <Input
+                type="number"
+                placeholder="5"
+                value={price}
+                min={MIN_PRICE}
+                step="0.1"
+                onChange={(e) => setPrice(e.target.value)}
+                className={`${parseFloat(price) < MIN_PRICE ? 'border-red-500' : ''}`}
+              />
             </div>
 
             {/* Availability Section */}
@@ -470,15 +483,48 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
 
               {availabilityEnabled && (
                 <div className="space-y-4 p-3 bg-slate-50 rounded-lg">
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <label className="text-xs font-semibold uppercase text-muted-foreground">Timezone</label>
-                    <Input
-                      value={timezone}
-                      onChange={(e) => setTimezone(e.target.value)}
-                      placeholder="e.g. Europe/Paris"
-                      className="bg-white"
-                    />
-                    <p className="text-xs text-muted-foreground">Use standard IANA timezones (e.g. America/New_York)</p>
+                    <div className="relative">
+                      <Input
+                        value={showTimezoneDropdown ? timezoneSearch : timezone}
+                        onChange={(e) => {
+                          setTimezoneSearch(e.target.value);
+                          setShowTimezoneDropdown(true);
+                        }}
+                        onFocus={() => {
+                          setTimezoneSearch('');
+                          setShowTimezoneDropdown(true);
+                        }}
+                        onBlur={() => {
+                          // Delay to allow click on dropdown item
+                          setTimeout(() => setShowTimezoneDropdown(false), 150);
+                        }}
+                        placeholder="Search timezones..."
+                        className="bg-white"
+                      />
+                      {showTimezoneDropdown && filteredTimezones.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          {filteredTimezones.map((tz) => (
+                            <button
+                              key={tz}
+                              type="button"
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors ${tz === timezone ? 'bg-primary/10 font-medium' : ''
+                                }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setTimezone(tz);
+                                setTimezoneSearch('');
+                                setShowTimezoneDropdown(false);
+                              }}
+                            >
+                              {tz.replace(/_/g, ' ')}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Current: {timezone.replace(/_/g, ' ')}</p>
                   </div>
 
                   {/* Weekdays */}
@@ -540,39 +586,37 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
               )}
             </div>
 
-            {/* Rules Section (Collapsed for brevity, same as before) */}
-            <div className="space-y-3 border-t pt-4">
-              <label className="text-sm font-medium">
-                Custom Pricing Rules (Beta)
-              </label>
-              {pricingRules.map((rule) => (
-                <div
-                  key={rule.id}
-                  className="flex gap-2 items-end border p-2 rounded"
-                >
-                  <div className="flex-1 text-sm">
-                    {getRuleTypeLabel(rule.type)}: {rule.value} - {rule.price}{" "}
-                    USDC
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removePricingRule(rule.id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+            {/* Rules Section - Coming Soon */}
+            <div className="space-y-3 border-t pt-4 opacity-50">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">
+                  Custom Pricing Rules
+                </label>
+                <span className="text-xs bg-muted px-2 py-1 rounded-full">
+                  Coming Soon
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Set different prices for POAP holders, token owners, ENS names, and more.
+              </p>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={addPricingRule}
+                disabled
                 className="w-full"
               >
                 <Plus className="h-4 w-4 mr-2" /> Add Rule
               </Button>
             </div>
           </div>
+
+          {/* Error Message */}
+          {saveError && (
+            <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {saveError}
+            </div>
+          )}
 
           <Button
             onClick={handleConfirmSetup}

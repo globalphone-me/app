@@ -21,6 +21,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    // Minimum price validation
+    const MIN_PRICE = 5;
+    if (parseFloat(price) < MIN_PRICE) {
+      return NextResponse.json(
+        { error: `Minimum price is $${MIN_PRICE} USDC` },
+        { status: 400 }
+      );
+    }
+
     // 2. Verify ownership: Ensure the authenticated user is modifying their own profile
     if (session.address.toLowerCase() !== address.toLowerCase()) {
       return NextResponse.json(
