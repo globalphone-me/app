@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CallCard } from "@/components/call-card";
 import { isUserAvailable, getTimeUntilAvailable } from "@/lib/availability";
 import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { YourPriceCard } from "@/components/your-price-card";
@@ -121,9 +122,9 @@ export default function ProfilePage() {
         // If user is viewing their own address and profile doesn't exist, show setup form
         if (isOwnProfile) {
             return (
-                <div className="min-h-screen bg-zinc-50 dark:bg-black">
+                <div className="min-h-screen bg-zinc-50 dark:bg-black flex flex-col">
                     <Header />
-                    <main className="container mx-auto px-4 py-12 max-w-2xl">
+                    <main className="container mx-auto px-4 py-12 max-w-2xl flex-grow">
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-center">Create Your Profile</CardTitle>
@@ -141,6 +142,7 @@ export default function ProfilePage() {
                             </CardContent>
                         </Card>
                     </main>
+                    <Footer />
                 </div>
             );
         }
@@ -158,10 +160,10 @@ export default function ProfilePage() {
     const formattedAddress = `${user.address.slice(0, 6)}...${user.address.slice(-4)}`;
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-black">
+        <div className="min-h-screen bg-zinc-50 dark:bg-black flex flex-col">
             <Header />
 
-            <main className="container mx-auto px-4 py-12 max-w-4xl">
+            <main className="container mx-auto px-4 py-12 max-w-4xl flex-grow">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {/* Profile Info Side */}
                     <div className="md:col-span-1 space-y-6">
@@ -350,6 +352,8 @@ export default function ProfilePage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <Footer />
         </div >
     );
 }
