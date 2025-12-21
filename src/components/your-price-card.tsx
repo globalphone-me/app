@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useAccount, useEnsName } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Pencil, Plus, X, Loader2 } from "lucide-react";
+import { Pencil, Plus, X, Loader2, Check, AlertCircle } from "lucide-react";
 import { mainnet } from "wagmi/chains";
 import { isWorldApp } from "@/lib/world-app";
 import { useUpdateUser } from "@/hooks/useUsers";
@@ -21,7 +22,12 @@ interface PricingRule {
   price: string;
 }
 
-export function YourPriceCard() {
+interface YourPriceCardProps {
+  forceEditMode?: boolean;
+  onClose?: () => void;
+}
+
+export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardProps = {}) {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const { data: ensName } = useEnsName({
     address: wagmiAddress,
@@ -34,10 +40,19 @@ export function YourPriceCard() {
   // State
   const [isLoading, setIsLoading] = useState(false);
   const [hasSetup, setHasSetup] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(forceEditMode);
+
+  useEffect(() => {
+    if (forceEditMode) setIsEditing(true);
+  }, [forceEditMode]);
 
   // Form Fields
-  const [name, setName] = useState(""); // <--- NEW
+  const [name, setName] = useState("");
+  const [handle, setHandle] = useState("");
+  const [originalHandle, setOriginalHandle] = useState(""); // Track existing handle
+  const [handleStatus, setHandleStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const [handleError, setHandleError] = useState("");
+  const [bio, setBio] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [price, setPrice] = useState("0.1");
@@ -71,6 +86,16 @@ export function YourPriceCard() {
   const isConnected = wagmiConnected || (miniKitInstalled && !!miniKitAddress);
   const address = miniKitAddress || wagmiAddress;
 
+  // Availability State
+  const [availabilityEnabled, setAvailabilityEnabled] = useState(false);
+  const [timezone, setTimezone] = useState("UTC");
+  const [weekdaysStart, setWeekdaysStart] = useState("09:00");
+  const [weekdaysEnd, setWeekdaysEnd] = useState("17:00");
+  const [weekdaysEnabled, setWeekdaysEnabled] = useState(true);
+  const [weekendsStart, setWeekendsStart] = useState("10:00");
+  const [weekendsEnd, setWeekendsEnd] = useState("20:00");
+  const [weekendsEnabled, setWeekendsEnabled] = useState(true);
+
   // Check User Hook
   useEffect(() => {
     async function checkUser() {
@@ -81,11 +106,28 @@ export function YourPriceCard() {
         if (res.ok) {
           const data = await res.json();
           if (data.found) {
-            setName(data.user.name || ""); // Load Name
+            setName(data.user.name || "");
+            setHandle(data.user.handle || "");
+            setOriginalHandle(data.user.handle || ""); // Store original
+            if (data.user.handle) setHandleStatus("available"); // Already has handle
+            setBio(data.user.bio || "");
             setPhoneNumber(data.user.phoneNumber);
             setPrice(data.user.price);
             setOnlyHumans(data.user.onlyHumans || false);
             setPricingRules(data.user.rules || []);
+
+            // Load Availability
+            if (data.user.availability) {
+              setAvailabilityEnabled(data.user.availability.enabled);
+              setTimezone(data.user.availability.timezone);
+              setWeekdaysStart(data.user.availability.weekdays.start);
+              setWeekdaysEnd(data.user.availability.weekdays.end);
+              setWeekdaysEnabled(data.user.availability.weekdays.enabled);
+              setWeekendsStart(data.user.availability.weekends.start);
+              setWeekendsEnd(data.user.availability.weekends.end);
+              setWeekendsEnabled(data.user.availability.weekends.enabled);
+            }
+
             setHasSetup(true);
           }
         }
@@ -106,6 +148,50 @@ export function YourPriceCard() {
     return phone.slice(0, 4) + "*".repeat(phone.length - 6) + phone.slice(-2);
   };
 
+  // Handle check with debounce
+  useEffect(() => {
+    if (!handle || handle.length < 4) {
+      setHandleStatus("idle");
+      setHandleError("");
+      return;
+    }
+
+    // If handle unchanged from original, it's still valid (user's own handle)
+    if (handle.toLowerCase() === originalHandle.toLowerCase()) {
+      setHandleStatus("available");
+      setHandleError("");
+      return;
+    }
+
+    // Basic validation
+    const handleRegex = /^[a-zA-Z0-9_]{4,15}$/;
+    if (!handleRegex.test(handle)) {
+      setHandleStatus("invalid");
+      setHandleError("Only letters, numbers, and underscores allowed (4-15 chars)");
+      return;
+    }
+
+    setHandleStatus("checking");
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/user/handle/check?handle=${handle}`);
+        const data = await res.json();
+        if (data.available) {
+          setHandleStatus("available");
+          setHandleError("");
+        } else {
+          setHandleStatus("taken");
+          setHandleError(data.error || "This handle is already taken");
+        }
+      } catch {
+        setHandleStatus("invalid");
+        setHandleError("Failed to check availability");
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timeout);
+  }, [handle]);
+
   // Rules Logic
   const addPricingRule = () =>
     setPricingRules([
@@ -123,9 +209,10 @@ export function YourPriceCard() {
     id: string,
     field: keyof PricingRule,
     value: string,
+    val: string,
   ) =>
     setPricingRules(
-      pricingRules.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+      pricingRules.map((r) => (r.id === id ? { ...r, [field]: val } : r)),
     );
   const getRuleTypeLabel = (type: RuleType) =>
     type === "poap"
@@ -147,15 +234,32 @@ export function YourPriceCard() {
     try {
       await updateUser.mutateAsync({
         name,
+        handle: handle || undefined, // Only send if set
+        bio,
         address,
         phoneNumber: normalizedPhone,
         price,
         onlyHumans,
         rules: pricingRules,
+        availability: {
+          enabled: availabilityEnabled,
+          timezone,
+          weekdays: {
+            start: weekdaysStart,
+            end: weekdaysEnd,
+            enabled: weekdaysEnabled,
+          },
+          weekends: {
+            start: weekendsStart,
+            end: weekendsEnd,
+            enabled: weekendsEnabled,
+          },
+        },
       });
 
       setHasSetup(true);
       setIsEditing(false);
+      if (onClose) onClose();
     } catch (e) {
       console.error(e);
       alert("Error saving settings.");
@@ -225,7 +329,6 @@ export function YourPriceCard() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
-            {/* NEW: Name Field */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Display Name</label>
               <Input
@@ -235,6 +338,51 @@ export function YourPriceCard() {
                 onChange={(e) => setName(e.target.value)}
                 className="w-full"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Handle <span className="text-muted-foreground text-xs">(your unique URL)</span>
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  @
+                </div>
+                <Input
+                  type="text"
+                  placeholder="yourhandle"
+                  value={handle}
+                  onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  className="w-full pl-8 pr-10"
+                  maxLength={15}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {handleStatus === "checking" && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  {handleStatus === "available" && <Check className="h-4 w-4 text-green-500" />}
+                  {(handleStatus === "taken" || handleStatus === "invalid") && <AlertCircle className="h-4 w-4 text-red-500" />}
+                </div>
+              </div>
+              {handleError && (
+                <p className="text-xs text-red-500">{handleError}</p>
+              )}
+              {handleStatus === "available" && handle && (
+                <p className="text-xs text-green-600">globalphone.me/u/{handle} is available!</p>
+              )}
+              {handle.length > 0 && handle.length < 4 && (
+                <p className="text-xs text-muted-foreground">Handle must be at least 4 characters</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Bio / Headline</label>
+              <Textarea
+                placeholder="Short bio about yourself (e.g. Web3 Lawyer, Available for calls)"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="w-full resize-none"
+                maxLength={160}
+              />
+              <p className="text-xs text-muted-foreground text-right">{bio.length}/160</p>
             </div>
 
             <div className="space-y-2">
@@ -279,8 +427,96 @@ export function YourPriceCard() {
               </div>
             </div>
 
+            {/* Availability Section */}
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Availability Schedule</label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="availability-enabled"
+                    checked={availabilityEnabled}
+                    onCheckedChange={(checked) => setAvailabilityEnabled(checked as boolean)}
+                  />
+                  <label htmlFor="availability-enabled" className="text-sm font-medium">
+                    Enable
+                  </label>
+                </div>
+              </div>
+
+              {availabilityEnabled && (
+                <div className="space-y-4 p-3 bg-slate-50 rounded-lg">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase text-muted-foreground">Timezone</label>
+                    <Input
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      placeholder="e.g. Europe/Paris"
+                      className="bg-white"
+                    />
+                    <p className="text-xs text-muted-foreground">Use standard IANA timezones (e.g. America/New_York)</p>
+                  </div>
+
+                  {/* Weekdays */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase text-muted-foreground">Mon - Fri</label>
+                      <Checkbox
+                        checked={weekdaysEnabled}
+                        onCheckedChange={(c) => setWeekdaysEnabled(c as boolean)}
+                      />
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="time"
+                        value={weekdaysStart}
+                        onChange={(e) => setWeekdaysStart(e.target.value)}
+                        className="bg-white"
+                        disabled={!weekdaysEnabled}
+                      />
+                      <span>-</span>
+                      <Input
+                        type="time"
+                        value={weekdaysEnd}
+                        onChange={(e) => setWeekdaysEnd(e.target.value)}
+                        className="bg-white"
+                        disabled={!weekdaysEnabled}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Weekends */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase text-muted-foreground">Sat - Sun</label>
+                      <Checkbox
+                        checked={weekendsEnabled}
+                        onCheckedChange={(c) => setWeekendsEnabled(c as boolean)}
+                      />
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="time"
+                        value={weekendsStart}
+                        onChange={(e) => setWeekendsStart(e.target.value)}
+                        className="bg-white"
+                        disabled={!weekendsEnabled}
+                      />
+                      <span>-</span>
+                      <Input
+                        type="time"
+                        value={weekendsEnd}
+                        onChange={(e) => setWeekendsEnd(e.target.value)}
+                        className="bg-white"
+                        disabled={!weekendsEnabled}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Rules Section (Collapsed for brevity, same as before) */}
-            <div className="space-y-3">
+            <div className="space-y-3 border-t pt-4">
               <label className="text-sm font-medium">
                 Custom Pricing Rules (Beta)
               </label>

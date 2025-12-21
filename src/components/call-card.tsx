@@ -1,33 +1,86 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { MiniKit, PayCommandInput, Tokens, tokenToDecimals, VerifyCommandInput, VerificationLevel, ISuccessResult, Permission, RequestPermissionPayload } from '@worldcoin/minikit-js';
 import { Device, Call } from "@twilio/voice-sdk";
-import { useWalletClient, useAccount } from 'wagmi';
+import { useWalletClient, useAccount, useBalance } from 'wagmi';
 import { wrapFetchWithPayment } from 'x402-fetch';
-import { PAYMENT_RECIPIENT_ADDRESS } from '@/lib/config';
+import { PAYMENT_RECIPIENT_ADDRESS, CHAIN } from '@/lib/config';
 import { isWorldApp } from '@/lib/world-app';
 import { monitor } from '@/lib/monitor';
+import { Loader2, Wallet, AlertCircle, CheckCircle } from 'lucide-react';
 
-export function CallCard() {
+// USDC on Base mainnet
+const USDC_BASE_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const;
+
+interface CallCardProps {
+  prefilledAddress?: string;
+  prefilledPrice?: string;
+  disabled?: boolean;
+  callButtonText?: string;
+  calleeName?: string;
+}
+
+export function CallCard({ prefilledAddress, prefilledPrice, disabled, callButtonText, calleeName }: CallCardProps) {
   // Wagmi hooks for x402 payment
-  const { isConnected: wagmiConnected } = useAccount();
+  const { isConnected: wagmiConnected, address: userAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
 
-  const [recipientAddress, setRecipientAddress] = useState('');
-  const [amount, setAmount] = useState('0.1'); // Default 0.1 USDC for testing
+  const [recipientAddress, setRecipientAddress] = useState(prefilledAddress || '');
+  const [amount, setAmount] = useState(prefilledPrice || '0.1');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState<'idle' | 'verifying' | 'paying' | 'calling'>('idle');
-  const [microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
+  const [_microphonePermissionGranted, setMicrophonePermissionGranted] = useState(false);
+
+  // Pre-call modal state
+  const [showPreCallModal, setShowPreCallModal] = useState(false);
+
+  // USDC Balance on Base
+  const { data: usdcBalance, isLoading: isBalanceLoading } = useBalance({
+    address: userAddress,
+    token: USDC_BASE_ADDRESS,
+    chainId: CHAIN.id,
+  });
+
+  const requiredAmount = parseFloat(prefilledPrice || amount);
+  const currentBalance = usdcBalance ? parseFloat(usdcBalance.formatted) : 0;
+  const hasEnoughBalance = currentBalance >= requiredAmount;
 
   // Twilio State
   const [device, setDevice] = useState<Device | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [deviceStatus, setDeviceStatus] = useState("Initializing...");
+
+  // Call timer state
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
+  const [callDuration, setCallDuration] = useState(0);
+
+  // Post-call state
+  const [postCallState, setPostCallState] = useState<'none' | 'completed' | 'missed'>('none');
+  const [finalCallDuration, setFinalCallDuration] = useState(0);
+
+  // Track if call was answered (using ref to avoid stale closure in event handlers)
+  const callWasAnsweredRef = useRef(false);
+  const callStartTimeRef = useRef<number | null>(null);
+
+  // Call duration timer effect
+  useEffect(() => {
+    if (!callStartTime) {
+      setCallDuration(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - callStartTime) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [callStartTime]);
 
   // Initialize Twilio Device on Mount
   useEffect(() => {
@@ -91,13 +144,13 @@ export function CallCard() {
     try {
       // Wrap fetch with x402 payment handling
       // @ts-expect-error - x402-fetch types might expect a strict Viem client, but Wagmi's is compatible
-      const secureFetch = wrapFetchWithPayment(fetch, walletClient);
+      const secureFetch = wrapFetchWithPayment(fetch, walletClient, BigInt(10000 * 10 ** 6));
 
       // Request connection - this will trigger 402 payment flow
       const response = await secureFetch('/api/purchase-connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetAddress: recipientAddress }),
+        body: JSON.stringify({ targetAddress: recipientAddress, callerAddress: userAddress }),
       });
 
       if (!response.ok) {
@@ -132,13 +185,30 @@ export function CallCard() {
       // Handle Call Events
       newCall.on('accept', () => {
         monitor.log("Call accepted");
+        const startTime = Date.now();
+        callWasAnsweredRef.current = true;
+        callStartTimeRef.current = startTime;
+        setCallStartTime(startTime);
         setCurrentStep('idle');
         setError('');
       });
 
       newCall.on('disconnect', () => {
         monitor.log("Call disconnected");
+        // Determine if call was completed (answered) or missed using refs (not stale state)
+        if (callWasAnsweredRef.current && callStartTimeRef.current) {
+          // Call was answered - show thank you
+          setFinalCallDuration(Math.floor((Date.now() - callStartTimeRef.current) / 1000));
+          setPostCallState('completed');
+        } else {
+          // Call was never answered - show missed
+          setPostCallState('missed');
+        }
+        // Reset refs
+        callWasAnsweredRef.current = false;
+        callStartTimeRef.current = null;
         setActiveCall(null);
+        setCallStartTime(null);
         setCurrentStep('idle');
       });
 
@@ -392,35 +462,48 @@ export function CallCard() {
           </div>
         ) : (
           <>
-            <div className="space-y-2">
-              <label htmlFor="recipient" className="text-sm font-medium">
-                Recipient Wallet Address
-              </label>
-              <Input
-                id="recipient"
-                type="text"
-                placeholder="0x..."
-                value={recipientAddress}
-                onChange={(e) => setRecipientAddress(e.target.value)}
-                className="w-full font-mono text-sm"
-              />
+            {/* How it works explanation */}
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-medium text-sm">How it works</h4>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <span className="text-base">💳</span>
+                  <span>Pay <strong className="text-foreground">${prefilledPrice || amount} USDC</strong> to start the call</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-base">📞</span>
+                  <span>If they pick up, the call connects and they keep the payment</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-base">💰</span>
+                  <span>If they don&apos;t pick up, you get a <strong className="text-foreground">refund</strong> (minus a $0.10 fee for cellular connection)</span>
+                </div>
+              </div>
             </div>
             {isMiniKitEnv && (
               <div className="space-y-2">
                 <label htmlFor="amount" className="text-sm font-medium">
                   Amount (USDC)
                 </label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  placeholder="5"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">Minimum: $0.10 USDC</p>
+                {prefilledPrice ? (
+                  <div className="p-2 border rounded-md bg-muted text-sm">
+                    {prefilledPrice} USDC
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      placeholder="5"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">Minimum: $0.10 USDC</p>
+                  </>
+                )}
               </div>
             )}
             {error && (
@@ -436,13 +519,13 @@ export function CallCard() {
               </div>
             )}
             <Button
-              onClick={handleCall}
+              onClick={() => setShowPreCallModal(true)}
               className="w-full"
-              disabled={isProcessing || !recipientAddress || (isMiniKitEnv && !amount) || deviceStatus !== "Ready" || !isConnected}
+              disabled={isProcessing || !recipientAddress || (isMiniKitEnv && !amount) || deviceStatus !== "Ready" || !isConnected || disabled}
             >
               {isProcessing
                 ? (currentStep === 'verifying' ? 'Verifying...' : currentStep === 'paying' ? 'Processing Payment...' : 'Connecting...')
-                : isMiniKitEnv ? 'Verify & Pay to Call' : 'Pay to Call'}
+                : callButtonText || (isMiniKitEnv ? 'Verify & Pay to Call' : 'Pay to Call')}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
               {isMiniKitEnv
@@ -454,6 +537,221 @@ export function CallCard() {
           </>
         )}
       </CardContent>
+
+      {/* Pre-Call Payment Modal */}
+      <Dialog
+        open={showPreCallModal}
+        onOpenChange={(open) => {
+          // Prevent closing during processing or active call
+          if (!open && (isProcessing || activeCall)) return;
+          setShowPreCallModal(open);
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => {
+            // Prevent close on click outside during processing/call
+            if (isProcessing || activeCall) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            // Prevent close on Escape during processing/call
+            if (isProcessing || activeCall) e.preventDefault();
+          }}
+        >
+          {/* Post-Call View - Completed */}
+          {postCallState === 'completed' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-center text-2xl">🎉 Thank You!</DialogTitle>
+                <DialogDescription className="text-center">
+                  Thanks for using GlobalPhone
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-6 text-center">
+                <div className="text-6xl">📞</div>
+                <div>
+                  <p className="text-lg font-medium">Your call lasted</p>
+                  <p className="text-3xl font-mono font-bold text-primary mt-2">
+                    {Math.floor(finalCallDuration / 60)} min {finalCallDuration % 60} sec
+                  </p>
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    setPostCallState('none');
+                    setShowPreCallModal(false);
+                  }}
+                >
+                  Done
+                </Button>
+              </div>
+            </>
+          ) : postCallState === 'missed' ? (
+            /* Post-Call View - Missed */
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-center text-2xl">📵 Call Unavailable</DialogTitle>
+                <DialogDescription className="text-center">
+                  We couldn&apos;t connect your call
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-6 text-center">
+                <div className="text-6xl">😔</div>
+                <div>
+                  <p className="text-lg">
+                    Sorry, <strong>{calleeName || 'the callee'}</strong> is busy and couldn&apos;t pick up.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Try again later!
+                  </p>
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    setPostCallState('none');
+                    setShowPreCallModal(false);
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </>
+          ) : activeCall ? (
+            /* In-Call View */
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-center">📞 Call in Progress</DialogTitle>
+                <DialogDescription className="text-center">
+                  Connected - call duration
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-6">
+                {/* Timer Display */}
+                <div className="text-center">
+                  <div className="text-5xl font-mono font-bold text-primary">
+                    {Math.floor(callDuration / 60).toString().padStart(2, '0')}:
+                    {(callDuration % 60).toString().padStart(2, '0')}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">Call duration</p>
+                </div>
+
+                {/* Hang Up Button */}
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleHangup}
+                >
+                  🛑 Hang Up
+                </Button>
+              </div>
+            </>
+          ) : (
+            /* Pre-Call View */
+            <>
+              <DialogHeader>
+                <DialogTitle>Confirm Payment</DialogTitle>
+                <DialogDescription>
+                  Review your balance before starting the call
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                {/* Wallet Balance */}
+                <div className="p-4 bg-muted rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Wallet className="h-4 w-4" />
+                      Your Balance
+                    </span>
+                    {isBalanceLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <span className="font-semibold">
+                        ${currentBalance.toFixed(2)} USDC
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between border-t pt-3">
+                    <span className="text-sm text-muted-foreground">Call Price</span>
+                    <span className="font-semibold">${requiredAmount.toFixed(2)} USDC</span>
+                  </div>
+                </div>
+
+                {/* Balance Status */}
+                {!isBalanceLoading && (
+                  <div className={`p-3 rounded-lg flex items-center gap-2 ${hasEnoughBalance
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
+                    }`}>
+                    {hasEnoughBalance ? (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="text-sm">You have enough balance to make this call</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-sm">
+                          Insufficient balance. You need ${(requiredAmount - currentBalance).toFixed(2)} more USDC
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Processing Status */}
+                {isProcessing && (
+                  <div className="p-3 text-sm bg-primary/10 text-primary rounded-md flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {currentStep === 'verifying' && 'Verifying humanity...'}
+                    {currentStep === 'paying' && 'Processing payment...'}
+                    {currentStep === 'calling' && 'Connecting call...'}
+                  </div>
+                )}
+
+                {/* Error display */}
+                {error && (
+                  <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md">
+                    {error}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowPreCallModal(false)}
+                    disabled={isProcessing}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    disabled={!hasEnoughBalance || isBalanceLoading || isProcessing}
+                    onClick={() => {
+                      handleCall();
+                    }}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      `Pay $${requiredAmount.toFixed(2)} & Call`
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

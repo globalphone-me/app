@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   allowedDevOrigins: ["https://9a22060a67ce.ngrok-free.app"],
 
+  images: {
+    remotePatterns: [new URL("https://pub-35d81df293e34baabacadb39c72aa2a4.r2.dev/**")]
+  },
+
   experimental: {
     optimizePackageImports: ["@rainbow-me/rainbowkit", "wagmi", "viem"],
   },
@@ -67,7 +71,7 @@ export default withSentryConfig(nextConfig, {
   // This can increase your server load as well as your hosting bill.
   // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
   // side errors will fail.
-  tunnelRoute: "/monitoring",
+  tunnelRoute: "/api/t",
 
   // Automatically tree-shake Sentry logger statements to reduce bundle size
   disableLogger: true,

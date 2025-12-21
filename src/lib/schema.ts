@@ -21,12 +21,16 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 export const users = pgTable('users', {
     id: uuid('id').primaryKey().defaultRandom(),
     address: text('address').unique().notNull(), // wallet address (lowercase)
+    handle: text('handle').unique(), // unique username/handle (lowercase, 4-15 chars, alphanumeric + underscore)
     name: text('name'),
     realPhoneNumber: text('real_phone_number').unique(),
     phoneId: text('phone_id').unique(), // hash of phone number
     price: decimal('price', { precision: 10, scale: 2 }),
     onlyHumans: boolean('only_humans').default(false),
     rules: text('rules'), // JSON stored as text
+    availability: text('availability'), // JSON stored as text
+    bio: text('bio'),
+    avatarUrl: text('avatar_url'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at'),
 });
