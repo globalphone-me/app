@@ -235,6 +235,30 @@ class PostgresDB {
       .where(eq(users.address, address.toLowerCase()));
   }
 
+  /**
+   * Reset a user's profile by clearing all profile fields.
+   * Keeps the user record (with address/id) for call history integrity.
+   * User can re-create their profile by signing in again.
+   */
+  async resetProfile(address: string): Promise<void> {
+    await drizzleDb
+      .update(users)
+      .set({
+        name: null,
+        handle: null,
+        realPhoneNumber: null,
+        phoneId: null,
+        price: null,
+        onlyHumans: null,
+        rules: null,
+        availability: null,
+        bio: null,
+        avatarUrl: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.address, address.toLowerCase()));
+  }
+
   // --- CALL SESSION METHODS ---
 
   async createCallSession(
