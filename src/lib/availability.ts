@@ -134,7 +134,7 @@ export function getTimeUntilAvailable(availability?: Availability): string | nul
             }
         }
 
-        return "not available this week";
+        return "Not available this week";
     } catch (error) {
         console.error("Error calculating next available time:", error);
         return null;
