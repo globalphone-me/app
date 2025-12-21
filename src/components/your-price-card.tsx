@@ -11,6 +11,7 @@ import { Pencil, Plus, X, Loader2, Check, AlertCircle } from "lucide-react";
 import { mainnet } from "wagmi/chains";
 import { isWorldApp } from "@/lib/world-app";
 import { useUpdateUser } from "@/hooks/useUsers";
+import { MIN_CALL_PRICE } from "@/lib/config";
 import { parsePhoneNumberFromString, isValidPhoneNumber, type CountryCode } from "libphonenumber-js";
 
 // Allowed countries for phone numbers
@@ -25,10 +26,6 @@ const ALLOWED_COUNTRIES: CountryCode[] = [
   "PT", // Portugal (+351)
   "CH", // Switzerland (+41)
   "GB", // United Kingdom (+44)
-  "IN", // India (+91)
-  "IL", // Israel (+972)
-  "JP", // Japan (+81)
-  "AU", // Australia (+61)
 ];
 
 type RuleType = "poap" | "token" | "ens" | "humans";
@@ -73,8 +70,7 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
   const [bio, setBio] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [price, setPrice] = useState("5");
-  const MIN_PRICE = 5; // Minimum $5 to cover Twilio costs
+  const [price, setPrice] = useState(MIN_CALL_PRICE.toString());
   const [onlyHumans, setOnlyHumans] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
@@ -268,8 +264,8 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
     }
 
     // Validate minimum price
-    if (parseFloat(price) < MIN_PRICE) {
-      setSaveError(`Minimum price is $${MIN_PRICE} USDC`);
+    if (parseFloat(price) < MIN_CALL_PRICE) {
+      setSaveError(`Minimum price is $${MIN_CALL_PRICE} USDC`);
       return;
     }
 
@@ -453,15 +449,15 @@ export function YourPriceCard({ forceEditMode = false, onClose }: YourPriceCardP
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Base Price (USDC) - Minimum ${MIN_PRICE}</label>
+              <label className="text-sm font-medium">Base Price (USDC) - Minimum ${MIN_CALL_PRICE}</label>
               <Input
                 type="number"
-                placeholder="5"
                 value={price}
-                min={MIN_PRICE}
-                step="0.1"
                 onChange={(e) => setPrice(e.target.value)}
-                className={`${parseFloat(price) < MIN_PRICE ? 'border-red-500' : ''}`}
+                min={MIN_CALL_PRICE}
+                step="0.1"
+                placeholder="e.g. 5"
+                className={`${parseFloat(price) < MIN_CALL_PRICE ? 'border-red-500' : ''}`}
               />
             </div>
 

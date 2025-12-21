@@ -44,6 +44,7 @@ export const payments = pgTable('payments', {
     status: paymentStatusEnum('status').default('HELD'),
     forwardTxHash: text('forward_tx_hash'),
     refundTxHash: text('refund_tx_hash'),
+    feeCharged: decimal('fee_charged', { precision: 10, scale: 2 }),
     createdAt: timestamp('created_at').defaultNow(),
     settledAt: timestamp('settled_at'),
 });

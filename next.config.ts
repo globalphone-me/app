@@ -13,6 +13,18 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["@rainbow-me/rainbowkit", "wagmi", "viem"],
   },
 
+  // Enable clean profile URLs: /username -> /u/username
+  async rewrites() {
+    return [
+      {
+        // Rewrite /:identifier to /u/:identifier
+        // Excludes reserved paths: api, admin, call, u, _next, and static files
+        source: '/:identifier((?!api|admin|call|u|_next|favicon.ico|robots.txt|sitemap.xml).*)',
+        destination: '/u/:identifier',
+      },
+    ];
+  },
+
   webpack: (config, { isServer }) => {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     config.resolve.fallback = {

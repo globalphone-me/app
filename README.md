@@ -1,20 +1,38 @@
-# GlobalPhone - ETHGlobal Buenos Aires 2025
+# GlobalPhone
 
-This project combines an x402 endpoint and a world mini app to allow anyone to call your phone at the price you choose. You can choose to restrict calls to humans, in which case only users of the World miniapp who verify their humanity will be able to call. In all other cases, anyone using the x402 endpoint can start the call, this includes AI Agent! You can make calls independent of location, to anyone, anywere, on their phone number. Users are self-sovereign of their attention; they choose how much their attention is worth by setting how much people should pay to call them. People will call only if it's worth it: low noise, high signal.
+**Get paid to pick up the phone.** GlobalPhone lets anyone monetize their attention by setting a price for incoming calls. Callers pay in USDC on Base, and if the call isn't answered, they get a refund (minus a small anti-spam fee).
 
-## Try it
+🌐 **Live at [globalphone.me](https://globalphone.me)**
 
-The code is deployed and live at https://globalphone.me
+## How It Works
 
-Currently, x402 endpoints resolve on Base Sepolia to the fixed price of 0,1 USDC / call, while World payments and proof-of-humanity is done entirely on World mainnet and is live with custom pricing.
+1. **Create a Profile** - Connect your wallet, set your price (minimum $5 USDC), and add your phone number
+2. **Share Your Link** - Your profile is available at `globalphone.me/yourhandle` or `globalphone.me/0x...`
+3. **Get Paid to Answer** - When someone calls, they pay upfront. You earn 90% if you answer; they get a refund if you don't
 
-## Usage
+### Payment Flow (x402 Protocol)
 
-To try the project locally and run the code yourself. Clone the repo and run the following commands:
+- Caller pays USDC on Base before the call connects
+- Payment is held in escrow during the call
+- **Call answered**: 90% forwarded to callee, 10% platform fee
+- **Call missed**: Refund to caller minus $0.10 anti-spam fee
 
-```
-npm i
-npm run dev
-```
+## Features
 
-Note that you need a properly setup Twlio account with a TwiML app and a World mini app setup in the World developer portal.
+- 📞 **USDC Payments on Base** - Cheap and fast transactions
+- 🔗 **Clean Profile URLs** - `globalphone.me/handle`
+- ⏰ **Availability Hours** - Set when you're available (weekdays/weekends)
+- 🌍 **Timezone Support** - Auto-detect IANA timezones
+- 📱 **Twilio Voice** - Real phone calls to any number
+- 🎨 **Custom Avatars** - Upload and crop your profile picture
+- 🗑️ **Account Deletion** - Reset your profile anytime
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React, TailwindCSS, shadcn/ui
+- **Wallet**: RainbowKit, wagmi, viem
+- **Payments**: x402 protocol on Base (USDC)
+- **Voice**: Twilio Voice SDK
+- **Database**: PostgreSQL with Drizzle ORM
+- **Storage**: Cloudflare R2 (avatars)
+- **Monitoring**: Sentry
