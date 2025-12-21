@@ -49,7 +49,7 @@ export function UserCard({ address, handle, name, bio, avatarUrl, price, availab
                     {/* Availability dot */}
                     <div
                         className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${isAvailable ? 'bg-green-500' : 'bg-gray-400'}`}
-                        title={isAvailable ? "Available now" : (timeUntilAvailable ? `Available ${timeUntilAvailable}` : "Currently unavailable")}
+                        title={isAvailable ? "Available now" : (timeUntilAvailable ? (timeUntilAvailable.startsWith("Not") ? timeUntilAvailable : `Available ${timeUntilAvailable}`) : "Currently unavailable")}
                     />
                 </div>
                 <div>
@@ -71,7 +71,7 @@ export function UserCard({ address, handle, name, bio, avatarUrl, price, availab
                 <div className="w-full bg-gray-300 text-gray-500 font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed">
                     <Phone className="h-4 w-4" />
                     <span>{timeUntilAvailable
-                        ? `Available ${timeUntilAvailable.replace(/ at \d+:\d+ [AP]M/, '')}`
+                        ? (timeUntilAvailable.startsWith("Not") ? timeUntilAvailable : `Available ${timeUntilAvailable.replace(/ at \d+:\d+ [AP]M/, '')}`)
                         : "Unavailable"}</span>
                 </div>
             )}

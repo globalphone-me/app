@@ -263,7 +263,7 @@ export default function ProfilePage() {
 
                                 <div className={`flex items-center gap-2 text-sm p-2 rounded justify-center ${isAvailable ? 'text-green-600 bg-green-50' : 'text-orange-600 bg-orange-50'}`}>
                                     <Clock className="h-4 w-4" />
-                                    <span>{isAvailable ? "Available Now" : (timeUntilAvailable ? `Available ${timeUntilAvailable}` : "Currently Unavailable")}</span>
+                                    <span>{isAvailable ? "Available Now" : (timeUntilAvailable ? (timeUntilAvailable.startsWith("Not") ? timeUntilAvailable : `Available ${timeUntilAvailable}`) : "Currently Unavailable")}</span>
                                 </div>
 
                                 {/* Logout Button - Only for profile owner */}
@@ -300,7 +300,7 @@ export default function ProfilePage() {
                                 prefilledAddress={user.address}
                                 prefilledPrice={user.price}
                                 disabled={!isAvailable}
-                                callButtonText={!isAvailable ? (timeUntilAvailable ? `Available ${timeUntilAvailable}` : "Not available") : undefined}
+                                callButtonText={!isAvailable ? (timeUntilAvailable ? (timeUntilAvailable.startsWith("Not") ? timeUntilAvailable : `Available ${timeUntilAvailable}`) : "Not available") : undefined}
                                 calleeName={user.name}
                             />
                         </div>
